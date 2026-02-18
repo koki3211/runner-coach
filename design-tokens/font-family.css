@@ -1,0 +1,48 @@
+/* ==========================================================
+   Runner Coach — Font Family Tokens
+   Apple HIG inspired typography system
+   ========================================================== */
+
+/* System Font Stack (SF Pro equivalent for web) */
+:root {
+  /* Primary — SF Pro style system font stack */
+  --font-family-system:
+    -apple-system,
+    BlinkMacSystemFont,
+    "SF Pro Display",
+    "SF Pro Text",
+    "Helvetica Neue",
+    Helvetica,
+    Arial,
+    sans-serif;
+
+  /* Rounded — SF Pro Rounded style */
+  --font-family-rounded:
+    "SF Pro Rounded",
+    ui-rounded,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Helvetica Neue",
+    Helvetica,
+    Arial,
+    sans-serif;
+
+  /* Monospace — SF Mono style */
+  --font-family-mono:
+    "SF Mono",
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    "Liberation Mono",
+    monospace;
+
+  /* Display — Large titles & hero text */
+  --font-family-display: var(--font-family-rounded);
+
+  /* Body — Running text */
+  --font-family-body: var(--font-family-system);
+
+  /* Data — Pace, distance, numbers */
+  --font-family-data: var(--font-family-mono);
+}

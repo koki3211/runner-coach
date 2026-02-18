@@ -1,0 +1,193 @@
+/* ==========================================================
+   Runner Coach — Design Tokens
+   Apple HIG inspired variable system
+   ========================================================== */
+
+@import url("font-family.css");
+
+:root {
+  /* --------------------------------------------------------
+     COLOR — Brand
+     -------------------------------------------------------- */
+  --color-brand-primary: #007AFF;       /* System Blue */
+  --color-brand-secondary: #5856D6;     /* System Indigo */
+  --color-brand-accent: #FF9500;        /* System Orange */
+
+  /* --------------------------------------------------------
+     COLOR — Semantic
+     -------------------------------------------------------- */
+  --color-success: #34C759;             /* System Green */
+  --color-warning: #FF9500;             /* System Orange */
+  --color-danger: #FF3B30;              /* System Red */
+  --color-info: #5AC8FA;                /* System Teal */
+
+  /* --------------------------------------------------------
+     COLOR — Workout types
+     -------------------------------------------------------- */
+  --color-easy-run: #34C759;            /* Green — easy / recovery */
+  --color-tempo-run: #FF9500;           /* Orange — tempo */
+  --color-interval: #FF3B30;            /* Red — interval / speed */
+  --color-long-run: #007AFF;            /* Blue — long run */
+  --color-rest-day: #8E8E93;            /* Gray — rest */
+  --color-race: #AF52DE;                /* Purple — race day */
+  --color-cross-train: #5AC8FA;         /* Teal — cross training */
+
+  /* --------------------------------------------------------
+     COLOR — Light mode surfaces
+     -------------------------------------------------------- */
+  --color-bg-primary: #FFFFFF;
+  --color-bg-secondary: #F2F2F7;
+  --color-bg-tertiary: #FFFFFF;
+  --color-bg-grouped: #F2F2F7;
+  --color-bg-elevated: #FFFFFF;
+
+  /* --------------------------------------------------------
+     COLOR — Light mode labels
+     -------------------------------------------------------- */
+  --color-label-primary: #000000;
+  --color-label-secondary: rgba(60, 60, 67, 0.6);
+  --color-label-tertiary: rgba(60, 60, 67, 0.3);
+  --color-label-quaternary: rgba(60, 60, 67, 0.18);
+
+  /* --------------------------------------------------------
+     COLOR — Light mode fills & separators
+     -------------------------------------------------------- */
+  --color-fill-primary: rgba(120, 120, 128, 0.2);
+  --color-fill-secondary: rgba(120, 120, 128, 0.16);
+  --color-fill-tertiary: rgba(120, 120, 128, 0.12);
+  --color-separator: rgba(60, 60, 67, 0.29);
+  --color-separator-opaque: #C6C6C8;
+
+  /* --------------------------------------------------------
+     TYPOGRAPHY — Sizes (Apple HIG scale)
+     -------------------------------------------------------- */
+  --font-size-large-title: 34px;
+  --font-size-title1: 28px;
+  --font-size-title2: 22px;
+  --font-size-title3: 20px;
+  --font-size-headline: 17px;
+  --font-size-body: 17px;
+  --font-size-callout: 16px;
+  --font-size-subhead: 15px;
+  --font-size-footnote: 13px;
+  --font-size-caption1: 12px;
+  --font-size-caption2: 11px;
+
+  /* --------------------------------------------------------
+     TYPOGRAPHY — Weights
+     -------------------------------------------------------- */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-heavy: 800;
+
+  /* --------------------------------------------------------
+     TYPOGRAPHY — Line heights
+     -------------------------------------------------------- */
+  --line-height-tight: 1.1;
+  --line-height-normal: 1.35;
+  --line-height-relaxed: 1.5;
+
+  /* --------------------------------------------------------
+     SPACING — 4px base grid
+     -------------------------------------------------------- */
+  --space-2xs: 2px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-base: 16px;
+  --space-lg: 20px;
+  --space-xl: 24px;
+  --space-2xl: 32px;
+  --space-3xl: 40px;
+  --space-4xl: 48px;
+
+  /* --------------------------------------------------------
+     RADIUS
+     -------------------------------------------------------- */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  /* --------------------------------------------------------
+     SHADOWS — Apple-style layering
+     -------------------------------------------------------- */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.06);
+
+  /* --------------------------------------------------------
+     ANIMATION
+     -------------------------------------------------------- */
+  --duration-instant: 100ms;
+  --duration-fast: 200ms;
+  --duration-normal: 350ms;
+  --duration-slow: 500ms;
+  --easing-default: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --easing-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* --------------------------------------------------------
+     LAYOUT
+     -------------------------------------------------------- */
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --tab-bar-height: 83px;
+  --nav-bar-height: 44px;
+}
+
+/* ==========================================================
+   DARK MODE
+   ========================================================== */
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Surfaces */
+    --color-bg-primary: #000000;
+    --color-bg-secondary: #1C1C1E;
+    --color-bg-tertiary: #2C2C2E;
+    --color-bg-grouped: #000000;
+    --color-bg-elevated: #1C1C1E;
+
+    /* Labels */
+    --color-label-primary: #FFFFFF;
+    --color-label-secondary: rgba(235, 235, 245, 0.6);
+    --color-label-tertiary: rgba(235, 235, 245, 0.3);
+    --color-label-quaternary: rgba(235, 235, 245, 0.18);
+
+    /* Fills & Separators */
+    --color-fill-primary: rgba(120, 120, 128, 0.36);
+    --color-fill-secondary: rgba(120, 120, 128, 0.32);
+    --color-fill-tertiary: rgba(120, 120, 128, 0.24);
+    --color-separator: rgba(84, 84, 88, 0.65);
+    --color-separator-opaque: #38383A;
+
+    /* Brand (dark mode accessible) */
+    --color-brand-primary: #0A84FF;
+    --color-brand-secondary: #5E5CE6;
+    --color-brand-accent: #FF9F0A;
+
+    /* Semantic (dark mode accessible) */
+    --color-success: #30D158;
+    --color-warning: #FF9F0A;
+    --color-danger: #FF453A;
+    --color-info: #64D2FF;
+
+    /* Workout types (dark mode accessible) */
+    --color-easy-run: #30D158;
+    --color-tempo-run: #FF9F0A;
+    --color-interval: #FF453A;
+    --color-long-run: #0A84FF;
+    --color-rest-day: #98989D;
+    --color-race: #BF5AF2;
+    --color-cross-train: #64D2FF;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+    --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.2);
+  }
+}
