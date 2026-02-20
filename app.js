@@ -613,13 +613,64 @@ const App = {
   },
 
   // --- Friends ---
+  friendsData: [],
+
+  buildSelfCard() {
+    const todayStr = toISO(today());
+    const workout = this.getTodayWorkout();
+    const done = this.isCompleted(todayStr);
+    const completed = this.state ? (this.state.completed || {}) : {};
+    const streak = calcStreak(completed);
+    const goalText = this.state.raceName
+      ? this.state.raceName + (this.state.targetTime ? '・目標 ' + this.state.targetTime : '')
+      : '目標未設定';
+
+    // Avatar
+    let photo, name;
+    if (typeof Social !== 'undefined' && Social.currentUser) {
+      name = Social.currentUser.displayName || 'あなた';
+      photo = Social.currentUser.photoURL
+        ? '<img src="' + escapeHtml(Social.currentUser.photoURL) + '" style="width:48px;height:48px;border-radius:50%">'
+        : '<div class="friend-avatar" style="background:linear-gradient(135deg,#007AFF,#5856D6)">' + escapeHtml(name[0]) + '</div>';
+    } else {
+      name = 'あなた';
+      photo = '<div class="friend-avatar" style="background:linear-gradient(135deg,#007AFF,#5856D6)">あ</div>';
+    }
+
+    // Today's workout status
+    const todayHTML = buildTodayStatusHTML(workout, done);
+
+    // Week dots
+    const monday = getMonday(new Date());
+    let dots = '';
+    for (let i = 0; i < 7; i++) {
+      const d = toISO(addDays(monday, i));
+      const cls = this.isCompleted(d) ? 'done' : (d <= todayStr ? '' : 'planned');
+      dots += '<div class="friend-week-dot ' + cls + '"></div>';
+    }
+
+    return '<div class="section" style="padding-bottom:0"><div class="section-header">あなた</div>' +
+      '<div class="friend-card" onclick="App.switchTab(\'plan\',document.querySelector(\'[data-tab=plan]\'))">' + photo +
+      '<div class="friend-info">' +
+        '<div class="friend-name">' + escapeHtml(name) + '</div>' +
+        '<div class="friend-goal">' + escapeHtml(goalText) + '</div>' +
+        '<div class="friend-today">' + todayHTML + '</div>' +
+        '<div class="friend-week">' + dots + '</div>' +
+      '</div>' +
+      '<div class="friend-streak"><div class="streak-num">' + streak + '</div><div class="streak-label">日連続</div></div>' +
+    '</div></div>';
+  },
+
   async renderFriends() {
     const container = document.getElementById('friends-content');
     if (!container) return;
 
+    // Self card (always shown if plan exists)
+    const selfCardHTML = (this.state && this.state.plan) ? this.buildSelfCard() : '';
+
     // Not configured
     if (typeof Social === 'undefined' || !Social.enabled) {
-      container.innerHTML = '<div id="auth-section"></div>' +
+      container.innerHTML = selfCardHTML + '<div id="auth-section"></div>' +
         '<div class="empty-state"><div class="empty-icon">\u{1F465}</div>' +
         '<div class="empty-text">Firebase\u3092\u8a2d\u5b9a\u3059\u308b\u3068<br>\u4ef2\u9593\u306e\u30c8\u30ec\u30fc\u30cb\u30f3\u30b0\u304c\u898b\u3048\u307e\u3059</div></div>';
       this.renderAuthUI(null);
@@ -628,7 +679,7 @@ const App = {
 
     // Not logged in
     if (!Social.currentUser) {
-      container.innerHTML = '<div id="auth-section"></div>';
+      container.innerHTML = selfCardHTML + '<div id="auth-section"></div>';
       this.renderAuthUI(null);
       return;
     }
@@ -639,7 +690,7 @@ const App = {
       ? '<div class="card mx"><div class="my-id-card"><div class="text-sm text-secondary">あなたのID</div><div class="my-id-code">' + escapeHtml(myId) + '</div><div class="my-id-actions"><button class="id-copy-btn" onclick="navigator.clipboard.writeText(\'' + escapeHtml(myId) + '\');this.textContent=\'コピー済み\'">IDをコピー</button></div></div></div>'
       : '';
 
-    container.innerHTML = '<div id="auth-section"></div>' + myIdHTML +
+    container.innerHTML = selfCardHTML + '<div id="auth-section"></div>' + myIdHTML +
       '<div class="section" style="padding-bottom:0"><div class="section-header">友達を追加</div>' +
       '<div class="card"><div class="friend-add-row">' +
       '<input type="text" id="friend-id-input" placeholder="友達のIDを入力" class="form-input" style="flex:1" maxlength="8">' +
@@ -667,11 +718,12 @@ const App = {
 
     // Load friends data
     const friends = await Social.loadFriendsData();
+    this.friendsData = friends;
     const listEl = document.getElementById('friends-list');
 
     if (friends.length === 0) {
       listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">\u{1F465}</div>' +
-        '<div class="empty-text">まだ仲間がいません<br>メールアドレスで友達を追加しましょう</div></div>';
+        '<div class="empty-text">まだ仲間がいません<br>IDで友達を追加しましょう</div></div>';
       return;
     }
 
@@ -682,13 +734,16 @@ const App = {
         const isDone = f.completed && f.completed[todayStr];
         const sett = f.settings || {};
         const goalText = sett.raceName ? sett.raceName + (sett.targetTime ? '・目標 ' + sett.targetTime : '') : '目標未設定';
-        const todayText = isDone ? '完了!' : '予定あり';
         const colors = ['#FF6B6B,#FF3B30', '#5AC8FA,#007AFF', '#AF52DE,#5856D6', '#34C759,#248A3D', '#FF9500,#FF6B00'];
         const color = colors[Math.abs(hashStr(f.uid)) % colors.length];
         const initial = (f.displayName || f.email || '?')[0].toUpperCase();
         const photo = f.photoURL
           ? '<img src="' + escapeHtml(f.photoURL) + '" style="width:48px;height:48px;border-radius:50%">'
           : '<div class="friend-avatar" style="background:linear-gradient(135deg,' + color + ')">' + escapeHtml(initial) + '</div>';
+
+        // Today's workout from friend's plan
+        const friendWorkout = findTodayWorkout(f.plan, todayStr);
+        const todayHTML = buildTodayStatusHTML(friendWorkout, isDone);
 
         // Week dots
         const monday = getMonday(new Date());
@@ -699,16 +754,84 @@ const App = {
           dots += '<div class="friend-week-dot ' + cls + '"></div>';
         }
 
-        return '<div class="friend-card">' + photo +
+        const hasPlan = f.plan && f.plan.length > 0;
+        const clickAttr = hasPlan ? ' onclick="App.showFriendPlan(\'' + f.uid + '\')"' : '';
+
+        return '<div class="friend-card"' + clickAttr + '>' + photo +
           '<div class="friend-info">' +
             '<div class="friend-name">' + escapeHtml(f.displayName || f.email) + '</div>' +
             '<div class="friend-goal">' + escapeHtml(goalText) + '</div>' +
-            '<div class="friend-today">' + todayText + (isDone ? '<span class="done-badge">完了!</span>' : '') + '</div>' +
+            '<div class="friend-today">' + todayHTML + '</div>' +
             '<div class="friend-week">' + dots + '</div>' +
           '</div>' +
           '<div class="friend-streak"><div class="streak-num">' + streak + '</div><div class="streak-label">日連続</div></div>' +
         '</div>';
       }).join('') + '</div>';
+  },
+
+  // --- Friend Plan Viewer ---
+  showFriendPlan(uid) {
+    const friend = this.friendsData.find(f => f.uid === uid);
+    if (!friend || !friend.plan || friend.plan.length === 0) return;
+
+    const sett = friend.settings || {};
+    const dist = sett.raceType === 'half' ? '21.1km' : '42.195km';
+    const subtitle = sett.raceName
+      ? sett.raceName + '（' + dist + '）' + (sett.targetTime ? '・目標 ' + sett.targetTime : '')
+      : '';
+    const todayStr = toISO(today());
+
+    let planHTML = '';
+    let currentWeekIdx = -1;
+    for (let wi = 0; wi < friend.plan.length; wi++) {
+      const week = friend.plan[wi];
+      const label = week.isRecovery
+        ? 'Week ' + week.weekNum + ' \u2014 ' + week.phaseName + '\uff08\u56de\u5fa9\u9031\uff09'
+        : 'Week ' + week.weekNum + ' \u2014 ' + week.phaseName;
+      planHTML += '<div class="plan-week"><div class="plan-week-header mt-lg">' + label + '</div><ul class="plan-list mx">';
+
+      for (const day of week.days) {
+        if (day.date === todayStr) currentWeekIdx = wi;
+        const done = friend.completed && friend.completed[day.date];
+        const type = TYPE_MIGRATION[day.type] || day.type;
+        const distLabel = day.dist > 0 ? formatDist(day.dist, day.type) + 'km' : '\u2014';
+        const d = fromISO(day.date);
+        const dateLabel = (d.getMonth() + 1) + '/' + d.getDate();
+        const nameDisplay = TYPE_JA[type] || day.name;
+        const isToday = day.date === todayStr;
+
+        planHTML += '<li class="plan-item' + (isToday ? ' friend-plan-today' : '') + '" style="cursor:default">' +
+          '<span class="plan-dot" style="background:' + (TYPE_COLORS[type] || 'var(--color-fill-primary)') + '"></span>' +
+          '<span class="plan-day">' + day.dayJa + '</span>' +
+          '<span class="plan-date">' + dateLabel + '</span>' +
+          '<span class="plan-name">' + escapeHtml(nameDisplay) + '</span>' +
+          '<span class="plan-dist">' + distLabel + '</span>' +
+          '<span class="plan-check' + (done ? ' done' : '') + '"></span></li>';
+      }
+      planHTML += '</ul></div>';
+    }
+
+    const overlay = document.getElementById('friend-plan-overlay');
+    overlay.innerHTML =
+      '<div class="friend-plan-header">' +
+        '<button class="friend-plan-close" onclick="App.closeFriendPlan()">\u2715</button>' +
+        '<div class="friend-plan-name">' + escapeHtml(friend.displayName || friend.email || '友達') + ' のプラン</div>' +
+        '<div class="friend-plan-subtitle">' + escapeHtml(subtitle) + '</div>' +
+      '</div>' +
+      '<div class="friend-plan-body">' + planHTML + '</div>';
+    overlay.classList.add('show');
+
+    // Scroll to current week
+    if (currentWeekIdx >= 0) {
+      setTimeout(() => {
+        const weeks = overlay.querySelectorAll('.plan-week');
+        if (weeks[currentWeekIdx]) weeks[currentWeekIdx].scrollIntoView({ behavior: 'auto', block: 'start' });
+      }, 100);
+    }
+  },
+
+  closeFriendPlan() {
+    document.getElementById('friend-plan-overlay').classList.remove('show');
   },
 
   async addFriend() {
@@ -864,6 +987,38 @@ const App = {
 };
 
 // --- Helpers ---
+function calcStreak(completed) {
+  if (!completed) return 0;
+  let streak = 0;
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  if (!completed[toISO(d)]) d.setDate(d.getDate() - 1);
+  while (completed[toISO(d)]) {
+    streak++;
+    d.setDate(d.getDate() - 1);
+  }
+  return streak;
+}
+
+function findTodayWorkout(plan, todayStr) {
+  if (!plan) return null;
+  for (const week of plan) {
+    for (const day of week.days) {
+      if (day.date === todayStr) return day;
+    }
+  }
+  return null;
+}
+
+function buildTodayStatusHTML(workout, done) {
+  if (!workout) return '<span style="color:var(--color-label-secondary)">—</span>';
+  const type = TYPE_MIGRATION[workout.type] || workout.type;
+  if (type === 'rest') return '<span style="color:var(--color-label-secondary)">レスト</span>';
+  const name = TYPE_JA[type] || workout.name;
+  if (done) return '<span style="color:var(--color-success);font-weight:600">' + escapeHtml(name) + '完了</span>';
+  return '<span style="color:var(--color-danger);font-weight:600">' + escapeHtml(name) + '未完了</span>';
+}
+
 function buildSteps(steps) {
   return steps.map((s, i) =>
     '<li><span class="step-index" style="background:' + s.color + '">' + (i + 1) + '</span>' +
