@@ -116,14 +116,16 @@ function generatePlanData(raceName, raceDate, raceType, targetTime) {
     const taperFactor = phase === 'taper' ? 0.7 - (frac - 0.85) * 2 : 1.0;
     const factor = progress * taperFactor * volMult * scale * paceScale;
 
-    const recoveryDist = round1(5 * Math.min(factor, 1.3));
-    const easyDist = round1(7 * Math.min(factor, 1.5));
-    const intervalDist = round1(8 * Math.min(factor, 1.4));
-    const tempoDist = round1(10 * factor);
+    const recoveryDist = roundKm(5 * Math.min(factor, 1.3));
+    const easyDist = roundKm(7 * Math.min(factor, 1.5));
+    const tempoDist = roundKm(10 * factor);
     const longBase = raceType === 'half' ? 10 : 14;
-    const longDist = round1((longBase + w * 1.2) * scale * paceScale * taperFactor * volMult);
+    const longDist = roundKm((longBase + w * 1.2) * scale * paceScale * taperFactor * volMult);
 
     const intv = INTERVALS[w % INTERVALS.length];
+    // Interval distance = warmup 2km + reps distance + cooldown 2km
+    const repsDist = parseRepsDist(intv.reps);
+    const intervalDist = roundKm(2 + repsDist + 2);
     const weekStart = addDays(startMonday, w * 7);
 
     const days = [
@@ -148,14 +150,21 @@ function generatePlanData(raceName, raceDate, raceType, targetTime) {
       phase, phaseName, isRecovery,
       startDate: toISO(weekStart),
       days: weekDays,
-      totalDist: round1(weekDays.reduce((s, d) => s + d.dist, 0))
+      totalDist: roundKm(weekDays.reduce((s, d) => s + d.dist, 0))
     });
   }
 
   return weeks;
 }
 
-function round1(n) { return Math.round(n * 10) / 10; }
+function roundKm(n) { return Math.round(n); }
+
+// Parse reps string like "800m × 5" → total km (e.g. 4.0)
+function parseRepsDist(repsStr) {
+  const m = repsStr.match(/(\d+)m\s*[×x]\s*(\d+)/i);
+  if (!m) return 3;
+  return (parseInt(m[1]) * parseInt(m[2])) / 1000;
+}
 
 // --- Monthly aggregation ---
 function calcMonthlyData(plan, completed) {
@@ -171,8 +180,8 @@ function calcMonthlyData(plan, completed) {
   }
   return Object.values(months).map(m => ({
     ...m,
-    planned: round1(m.planned),
-    completed: round1(m.completed),
+    planned: roundKm(m.planned),
+    completed: roundKm(m.completed),
     label: MONTHS_JA[parseInt(m.key.split('-')[1]) - 1]
   }));
 }
@@ -395,8 +404,8 @@ const App = {
     const done = this.isCompleted(todayStr);
     const weekCompleted = week.days.filter(d => this.isCompleted(d.date)).length;
     const weekWorkouts = week.days.filter(d => d.type !== 'rest').length;
-    const weekCompletedDist = round1(week.days.filter(d => this.isCompleted(d.date)).reduce((s, d) => s + d.dist, 0));
-    const weekRemainDist = round1(week.totalDist - weekCompletedDist);
+    const weekCompletedDist = roundKm(week.days.filter(d => this.isCompleted(d.date)).reduce((s, d) => s + d.dist, 0));
+    const weekRemainDist = roundKm(week.totalDist - weekCompletedDist);
     const progressPct = weekWorkouts > 0 ? Math.round((weekCompleted / weekWorkouts) * 100) : 0;
     const circ = 2 * Math.PI * 34;
     const dashOff = circ * (1 - progressPct / 100);
@@ -415,14 +424,14 @@ const App = {
         { label: 'クールダウン', meta: 'ゆっくりジョグ', pace: paces.recovery, color: 'var(--color-easy-run)' }
       ]);
     } else if (w.type === 'tempo') {
-      const tempoKm = round1(Math.max(w.dist - 4, 2));
+      const tempoKm = roundKm(Math.max(w.dist - 4, 2));
       stepsHTML = buildSteps([
         { label: 'ウォームアップ', meta: '2km ジョグ', pace: paces.easy, color: 'var(--color-easy-run)' },
         { label: 'テンポ走', meta: tempoKm + 'km', pace: paces.tempo, color: 'var(--color-tempo-run)' },
         { label: 'クールダウン', meta: '2km ジョグ', pace: paces.easy, color: 'var(--color-easy-run)' }
       ]);
     } else if (w.type === 'long') {
-      const third = round1(w.dist / 3);
+      const third = roundKm(w.dist / 3);
       stepsHTML = buildSteps([
         { label: 'イージースタート', meta: third + 'km', pace: paces.easy, color: 'var(--color-easy-run)' },
         { label: 'ステディペース', meta: third + 'km', pace: paces.long, color: 'var(--color-long-run)' },
@@ -455,7 +464,7 @@ const App = {
     const barChartHTML = barWeeks.map(bw => {
       const h = Math.round((bw.totalDist / maxDist) * 80);
       const isCurr = bw.weekNum === week.weekNum;
-      const compDist = round1(bw.days.filter(d => this.isCompleted(d.date)).reduce((s, d) => s + d.dist, 0));
+      const compDist = roundKm(bw.days.filter(d => this.isCompleted(d.date)).reduce((s, d) => s + d.dist, 0));
       const showDist = isCurr ? Math.round(compDist) : Math.round(bw.totalDist);
       const color = isCurr ? 'var(--color-brand-primary)' : bw.weekNum < week.weekNum ? 'var(--color-fill-primary)' : 'var(--color-fill-tertiary)';
       const border = bw.weekNum > week.weekNum ? ';border:1px dashed var(--color-separator)' : '';
@@ -574,11 +583,17 @@ const App = {
       return;
     }
 
-    container.innerHTML = '<div id="auth-section"></div>' +
+    // Get my short ID
+    const myId = await Social.getOrCreateUserId();
+    const myIdHTML = myId
+      ? '<div class="card mx"><div class="my-id-card"><div class="text-sm text-secondary">あなたのID</div><div class="my-id-code">' + escapeHtml(myId) + '</div><div class="my-id-actions"><button class="id-copy-btn" onclick="navigator.clipboard.writeText(\'' + escapeHtml(myId) + '\');this.textContent=\'コピー済み\'">IDをコピー</button></div></div></div>'
+      : '';
+
+    container.innerHTML = '<div id="auth-section"></div>' + myIdHTML +
       '<div class="section" style="padding-bottom:0"><div class="section-header">友達を追加</div>' +
-      '<div class="card"><div class="friend-search">' +
-      '<input type="email" id="friend-email" placeholder="メールアドレスで検索" class="form-input" style="flex:1">' +
-      '<button class="small-btn primary" onclick="App.addFriend()">追加</button>' +
+      '<div class="card"><div class="friend-add-row">' +
+      '<input type="text" id="friend-id-input" placeholder="友達のIDを入力" class="form-input" style="flex:1" maxlength="8">' +
+      '<button class="cta-btn" style="width:auto;margin:0;padding:var(--space-sm) var(--space-base);font-size:var(--font-size-subhead)" onclick="App.addFriend()">検索</button>' +
       '</div></div></div>' +
       '<div id="friend-requests"></div>' +
       '<div id="friends-list"><div class="empty-state"><div class="empty-icon">\u{23F3}</div><div class="empty-text">読み込み中...</div></div></div>';
@@ -647,15 +662,23 @@ const App = {
   },
 
   async addFriend() {
-    const input = document.getElementById('friend-email');
-    const email = input.value.trim();
-    if (!email) return;
-    const sent = await Social.sendFriendRequest(email);
+    const input = document.getElementById('friend-id-input');
+    const shortId = input.value.trim().toUpperCase();
+    if (!shortId || shortId.length < 4) {
+      alert('友達のIDを入力してください');
+      return;
+    }
+    const results = await Social.searchUserByShortId(shortId);
+    if (results.length === 0) {
+      alert('ユーザーが見つかりません');
+      return;
+    }
+    const sent = await Social.sendFriendRequest(results[0].uid);
     if (sent) {
       input.value = '';
       alert('フレンドリクエストを送信しました');
     } else {
-      alert('既にリクエスト済みか、ユーザーが見つかりません');
+      alert('既にフレンドか、リクエスト送信済みです');
     }
   },
 

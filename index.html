@@ -634,6 +634,35 @@
       flex: 1; width: auto; margin: 0;
     }
 
+    /* Small Button */
+    .small-btn {
+      padding: var(--space-xs) var(--space-md); border: 1px solid var(--color-separator-opaque);
+      background: var(--color-bg-primary); color: var(--color-label-primary);
+      border-radius: var(--radius-sm); font-size: var(--font-size-caption1);
+      font-weight: var(--font-weight-semibold); font-family: var(--font-family-body); cursor: pointer;
+    }
+    .small-btn:active { opacity: 0.7; }
+    .small-btn.primary { background: var(--color-brand-primary); color: #fff; border-color: var(--color-brand-primary); }
+    .small-btn.danger { background: none; color: var(--color-error); border-color: var(--color-error); }
+
+    /* Friend Details */
+    .friend-today { font-size: var(--font-size-caption1); color: var(--color-label-secondary); margin-top: 2px; }
+    .done-badge {
+      display: inline-block; padding: 1px 6px; margin-left: var(--space-xs);
+      background: var(--color-success); color: #fff; border-radius: var(--radius-full);
+      font-size: var(--font-size-caption2); font-weight: var(--font-weight-bold);
+    }
+    .friend-streak {
+      text-align: center; flex-shrink: 0; min-width: 44px;
+    }
+    .streak-num {
+      font-family: var(--font-family-data); font-size: var(--font-size-title2);
+      font-weight: var(--font-weight-bold); color: var(--color-brand-primary);
+    }
+    .streak-label {
+      font-size: var(--font-size-caption2); color: var(--color-label-secondary);
+    }
+
     /* Utility */
     .mx { margin-left: var(--space-base); margin-right: var(--space-base); }
     .text-secondary { color: var(--color-label-secondary); }
@@ -682,7 +711,34 @@
   </div>
   <div class="section">
     <div class="section-header">あなたの目標</div>
-    <div id="goal-form-area"></div>
+    <div id="goal-form-area">
+      <form id="goal-form" onsubmit="event.preventDefault()">
+        <div class="form-group">
+          <label class="form-label">大会名</label>
+          <input type="text" id="input-race-name" class="form-input" placeholder="例: 東京マラソン 2026">
+        </div>
+        <div class="form-group">
+          <label class="form-label">大会日</label>
+          <input type="date" id="input-race-date" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">種目</label>
+          <div class="form-toggle-group">
+            <button type="button" class="segment form-toggle active" data-value="full" onclick="App.selectRaceType(this)">フルマラソン</button>
+            <button type="button" class="segment form-toggle" data-value="half" onclick="App.selectRaceType(this)">ハーフマラソン</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">目標タイム</label>
+          <div class="time-input-group">
+            <input type="number" id="input-time-h" class="form-input time-input" value="4" min="1" max="9">
+            <span class="time-separator">時間</span>
+            <input type="number" id="input-time-m" class="form-input time-input" value="00" min="0" max="59">
+            <span class="time-separator">分</span>
+          </div>
+        </div>
+      </form>
+    </div>
   </div>
   <button class="cta-btn" id="generate-btn" onclick="App.generatePlan()">プランを自動作成</button>
   <div class="text-sm text-secondary" style="text-align:center;padding-bottom:var(--space-lg)">目標タイムからペースを自動算出します</div>
