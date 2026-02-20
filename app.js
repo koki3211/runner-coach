@@ -690,17 +690,33 @@ const App = {
 
       for (const day of week.days) {
         const done = this.isCompleted(day.date);
-        const distLabel = day.dist > 0 ? formatDist(day.dist, day.type) + 'km' : '\u2014';
         const d = fromISO(day.date);
         const dateLabel = (d.getMonth() + 1) + '/' + d.getDate();
-        const nameDisplay = TYPE_JA[day.type] || day.name;
         const commentBadge = day.comment ? '<span class="plan-comment-badge" title="' + escapeHtml(day.comment) + '">\u2026</span>' : '';
+
+        // Build detailed workout description
+        const workoutDesc = formatWorkoutDescription(day);
+
+        // Actual distance (user-recorded)
+        const actualDist = this.getActualDist(day.date);
+        let actualLabel = '';
+        if (day.type !== 'rest') {
+          if (actualDist !== null) {
+            actualLabel = '<span class="plan-actual">' + actualDist + 'km</span>';
+          } else if (done) {
+            // Completed but no actual distance recorded — show planned as actual
+            actualLabel = '<span class="plan-actual">' + formatDist(day.dist, day.type) + 'km</span>';
+          } else {
+            actualLabel = '<span class="plan-actual plan-actual-empty">\u2014</span>';
+          }
+        }
+
         html += '<li class="plan-item" onclick="App.openEditWorkout(\'' + day.date + '\')">' +
           '<span class="plan-dot" style="background:' + (TYPE_COLORS[day.type] || 'var(--color-fill-primary)') + '"></span>' +
           '<span class="plan-day">' + day.dayJa + '</span>' +
           '<span class="plan-date">' + dateLabel + '</span>' +
-          '<span class="plan-name">' + escapeHtml(nameDisplay) + commentBadge + '</span>' +
-          '<span class="plan-dist">' + distLabel + '</span>' +
+          '<span class="plan-name"><span class="plan-name-text">' + escapeHtml(workoutDesc) + '</span>' + commentBadge + '</span>' +
+          actualLabel +
           '<span class="plan-check' + (done ? ' done' : '') + '" onclick="event.stopPropagation();App.toggleComplete(\'' + day.date + '\')"></span></li>';
       }
       html += '</ul></div>';
@@ -717,6 +733,25 @@ const App = {
         if (els[idx]) els[idx].scrollIntoView({ behavior: 'auto', block: 'start' });
       }
     }, 100);
+  },
+
+  // Get actual distance for a date (null if not recorded)
+  getActualDist(dateStr) {
+    if (!this.state || !this.state.actualDist) return null;
+    const val = this.state.actualDist[dateStr];
+    return val !== undefined ? val : null;
+  },
+
+  // Set actual distance for a date
+  setActualDist(dateStr, dist) {
+    if (!this.state) return;
+    if (!this.state.actualDist) this.state.actualDist = {};
+    if (dist === null || dist === undefined || dist === '') {
+      delete this.state.actualDist[dateStr];
+    } else {
+      this.state.actualDist[dateStr] = parseFloat(dist);
+    }
+    saveState(this.state);
   },
 
   // --- Friends ---
@@ -1032,6 +1067,7 @@ const App = {
     const dd = fromISO(dateStr);
     const distVal = Math.round(targetDay.dist);
     const isInterval = targetDay.type === 'interval';
+    const isRest = targetDay.type === 'rest';
 
     // Parse interval rep info from detail
     let repDist = 400, repCount = 8;
@@ -1039,6 +1075,18 @@ const App = {
       const m = targetDay.detail.reps.match(/(\d+)m\s*[×x]\s*(\d+)/i);
       if (m) { repDist = parseInt(m[1]); repCount = parseInt(m[2]); }
     }
+
+    // Parse pace to minutes and seconds
+    let paceMin = '', paceSec = '';
+    if (targetDay.pace && targetDay.pace !== '-') {
+      const pp = targetDay.pace.split(':');
+      paceMin = pp[0] || '';
+      paceSec = pp[1] || '00';
+    }
+
+    // Actual distance
+    const actualDist = this.getActualDist(dateStr);
+    const actualVal = actualDist !== null ? actualDist : '';
 
     const overlay = document.getElementById('edit-overlay');
     overlay.innerHTML =
@@ -1055,8 +1103,22 @@ const App = {
             '<input type="number" id="edit-reps" class="form-input" value="' + repCount + '" min="1" step="1"></div>' +
         '</div>' +
         '<div id="edit-normal-fields" style="display:' + (isInterval ? 'none' : 'block') + '">' +
-          '<div class="edit-field"><label class="form-label">距離 (km)</label>' +
+          '<div class="edit-field"><label class="form-label">目標距離 (km)</label>' +
             '<input type="number" id="edit-dist" class="form-input" value="' + distVal + '" min="0" step="1"></div>' +
+        '</div>' +
+        '<div id="edit-pace-field" style="display:' + (isRest ? 'none' : 'block') + '">' +
+          '<div class="edit-field"><label class="form-label">目標ペース (/km)</label>' +
+            '<div class="time-input-group">' +
+              '<input type="number" id="edit-pace-min" class="form-input time-input" value="' + paceMin + '" min="2" max="15" placeholder="分">' +
+              '<span class="time-separator">:</span>' +
+              '<input type="number" id="edit-pace-sec" class="form-input time-input" value="' + paceSec + '" min="0" max="59" placeholder="秒">' +
+              '<span class="time-separator">/km</span>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div id="edit-actual-field" style="display:' + (isRest ? 'none' : 'block') + '">' +
+          '<div class="edit-field"><label class="form-label">実績距離 (km)</label>' +
+            '<input type="number" id="edit-actual-dist" class="form-input" value="' + actualVal + '" min="0" step="0.1" placeholder="実際に走った距離"></div>' +
         '</div>' +
         '<div class="edit-field"><label class="form-label">コメント</label>' +
           '<input type="text" id="edit-comment" class="form-input" value="' + escapeHtml(targetDay.comment || '') + '" placeholder="コメントを入力"></div>' +
@@ -1074,8 +1136,12 @@ const App = {
 
   onEditTypeChange() {
     const type = document.getElementById('edit-type').value;
-    document.getElementById('edit-interval-fields').style.display = type === 'interval' ? 'block' : 'none';
-    document.getElementById('edit-normal-fields').style.display = type === 'interval' ? 'none' : 'block';
+    const isInterval = type === 'interval';
+    const isRest = type === 'rest';
+    document.getElementById('edit-interval-fields').style.display = isInterval ? 'block' : 'none';
+    document.getElementById('edit-normal-fields').style.display = isInterval ? 'none' : 'block';
+    document.getElementById('edit-pace-field').style.display = isRest ? 'none' : 'block';
+    document.getElementById('edit-actual-field').style.display = isRest ? 'none' : 'block';
   },
 
   saveEditWorkout(dateStr) {
@@ -1094,6 +1160,22 @@ const App = {
       newDetail = null;
     }
 
+    // Parse pace
+    let newPace = '-';
+    if (newType !== 'rest') {
+      const pMin = document.getElementById('edit-pace-min').value;
+      const pSec = document.getElementById('edit-pace-sec').value;
+      if (pMin) {
+        newPace = pMin + ':' + String(pSec || '0').padStart(2, '0');
+      }
+    }
+
+    // Save actual distance
+    if (newType !== 'rest') {
+      const actualVal = document.getElementById('edit-actual-dist').value;
+      this.setActualDist(dateStr, actualVal ? parseFloat(actualVal) : null);
+    }
+
     for (const week of this.state.plan) {
       for (const day of week.days) {
         if (day.date === dateStr) {
@@ -1101,11 +1183,9 @@ const App = {
           day.dist = newDist;
           day.name = TYPE_JA[newType] || newType;
           day.comment = newComment;
+          day.pace = newPace;
           if (newDetail) day.detail = newDetail;
           else delete day.detail;
-          if (this.state.paces && this.state.paces[newType]) {
-            day.pace = this.state.paces[newType];
-          }
           break;
         }
       }
@@ -1186,6 +1266,26 @@ function findTodayWorkout(plan, todayStr) {
     }
   }
   return null;
+}
+
+function formatWorkoutDescription(day) {
+  if (day.type === 'rest') return 'レスト';
+  if (day.type === 'interval' && day.detail) {
+    return day.detail.reps + '（' + day.pace + '/km）';
+  }
+  if (day.type === 'jog') {
+    return formatDist(day.dist, day.type) + 'kmジョグ（' + day.pace + '/km）';
+  }
+  if (day.type === 'tempo') {
+    return formatDist(day.dist, day.type) + 'kmテンポ（' + day.pace + '/km）';
+  }
+  if (day.type === 'long') {
+    return formatDist(day.dist, day.type) + 'kmロング（' + day.pace + '/km）';
+  }
+  // Fallback
+  const name = TYPE_JA[day.type] || day.name;
+  if (day.dist > 0) return formatDist(day.dist, day.type) + 'km ' + name;
+  return name;
 }
 
 function buildTodayStatusHTML(workout, done) {

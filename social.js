@@ -89,6 +89,7 @@ const Social = {
         planWeeks: state.plan ? state.plan.length : 0
       },
       completed: state.completed || {},
+      actualDist: state.actualDist || {},
       plan: state.plan || [],
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
