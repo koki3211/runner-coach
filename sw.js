@@ -1,12 +1,9 @@
-const CACHE = 'runner-coach-v2';
+const CACHE = 'runner-coach-v3';
 const ASSETS = [
-  '/', '/index.html', '/app.js', '/firebase-config.js', '/social.js',
+  '/', '/index.html', '/app.js',
   '/design-tokens/variables.css', '/design-tokens/font-family.css',
   '/manifest.json', '/icon.svg'
 ];
-
-// Domains that should always go to network (Firebase, Google APIs)
-const NETWORK_ONLY = ['googleapis.com', 'gstatic.com', 'firebaseio.com', 'firebaseapp.com'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
@@ -19,14 +16,6 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  const url = new URL(e.request.url);
-
-  // Network-only for Firebase / Google API calls
-  if (NETWORK_ONLY.some(d => url.hostname.includes(d))) {
-    e.respondWith(fetch(e.request));
-    return;
-  }
-
   // Cache-first for local assets
   e.respondWith(
     caches.match(e.request).then(r => r || fetch(e.request).then(res => {

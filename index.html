@@ -268,33 +268,29 @@
     .plan-item .plan-check.done { border-color: var(--color-success); background: var(--color-success); }
     .plan-item .plan-check.done::after { content: "\2713"; color: #fff; font-size: 12px; font-weight: var(--font-weight-bold); }
 
-    /* Friends */
-    .friend-card {
-      display: flex; align-items: center; gap: var(--space-md);
-      padding: var(--space-base); background: var(--color-bg-primary);
-      border-radius: var(--radius-lg); box-shadow: var(--shadow-card);
-      margin: 0 var(--space-base) var(--space-md);
+    /* Share */
+    .share-preview {
+      font-family: var(--font-family-data); font-size: var(--font-size-footnote);
+      line-height: 1.6; color: var(--color-label-primary);
+      white-space: pre-wrap; padding: var(--space-base);
     }
-    .friend-avatar {
-      width: 48px; height: 48px; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 22px; flex-shrink: 0; color: #fff; font-weight: var(--font-weight-bold);
+    .share-buttons {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: var(--space-sm); padding: 0 var(--space-base);
     }
-    .friend-info { flex: 1; min-width: 0; }
-    .friend-name { font-size: var(--font-size-headline); font-weight: var(--font-weight-semibold); }
-    .friend-goal { font-size: var(--font-size-caption1); color: var(--color-label-secondary); margin-top: 2px; }
-    .friend-today { font-size: var(--font-size-footnote); color: var(--color-label-secondary); margin-top: var(--space-xs); display: flex; align-items: center; gap: var(--space-xs); }
-    .friend-today .done-badge {
-      font-size: var(--font-size-caption2); font-weight: var(--font-weight-semibold);
-      color: var(--color-success); background: rgba(52,199,89,0.12);
-      padding: 2px 8px; border-radius: var(--radius-full);
+    .share-btn {
+      display: flex; align-items: center; justify-content: center; gap: var(--space-sm);
+      padding: var(--space-md) var(--space-base);
+      border-radius: var(--radius-md); border: none;
+      font-size: var(--font-size-subhead); font-weight: var(--font-weight-semibold);
+      font-family: var(--font-family-body);
+      cursor: pointer; transition: opacity var(--duration-fast) ease;
     }
-    .friend-streak { text-align: center; flex-shrink: 0; }
-    .friend-streak .streak-num { font-family: var(--font-family-data); font-size: var(--font-size-title2); font-weight: var(--font-weight-bold); color: var(--color-brand-accent); }
-    .friend-streak .streak-label { font-size: var(--font-size-caption2); color: var(--color-label-secondary); }
-    .friend-week { display: flex; gap: 3px; margin-top: var(--space-sm); }
-    .friend-week-dot { width: 8px; height: 8px; border-radius: 2px; background: var(--color-fill-tertiary); }
-    .friend-week-dot.done { background: var(--color-success); }
+    .share-btn:active { opacity: 0.7; }
+    .share-btn-line { background: #06C755; color: #fff; }
+    .share-btn-x { background: #000; color: #fff; }
+    .share-btn-copy { background: var(--color-fill-secondary); color: var(--color-label-primary); }
+    .share-btn-other { background: var(--color-brand-primary); color: #fff; }
 
     /* Goal Screen — Custom Form */
     .form-group { margin: 0 var(--space-base) var(--space-lg); }
@@ -591,16 +587,14 @@
     <div class="subtitle" id="plan-subtitle"></div>
   </div>
   <div id="plan-content"></div>
-  <div id="monthly-content"></div>
 </div>
 
-<!-- SCREEN: FRIENDS -->
+<!-- SCREEN: SHARE -->
 <div id="screen-friends" class="screen">
   <div class="nav-bar">
-    <h1>仲間</h1>
-    <div class="subtitle">ランニング仲間とシェア</div>
+    <h1>シェア</h1>
+    <div class="subtitle">トレーニングを共有しよう</div>
   </div>
-  <div id="auth-area" class="auth-area"></div>
   <div id="friends-content"></div>
 </div>
 
@@ -642,8 +636,8 @@
     プラン
   </button>
   <button class="tab-item" data-tab="friends" onclick="App.switchTab('friends',this)">
-    <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
-    仲間
+    <svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/></svg>
+    シェア
   </button>
   <button class="tab-item" data-tab="goal" onclick="App.switchTab('goal',this)">
     <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
@@ -651,12 +645,6 @@
   </button>
 </nav>
 
-<!-- Firebase SDK (loaded only if config is set) -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js"></script>
-<script src="social.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
