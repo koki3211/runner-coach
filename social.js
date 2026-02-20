@@ -40,11 +40,13 @@ const Social = {
       return result.user;
     } catch (e) {
       if (e.code === 'auth/popup-blocked') {
-        // Fallback to redirect if popup is blocked
         const provider = new firebase.auth.GoogleAuthProvider();
         this.auth.signInWithRedirect(provider);
+      } else if (e.code === 'auth/unauthorized-domain') {
+        alert('このドメインはFirebaseで許可されていません。\nFirebase Console → Authentication → Settings → Authorized domains に「' + location.hostname + '」を追加してください。');
       } else if (e.code !== 'auth/popup-closed-by-user') {
         console.error('Login error:', e);
+        alert('ログインエラー: ' + e.message);
       }
       return null;
     }
