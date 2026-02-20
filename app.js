@@ -194,11 +194,20 @@ const App = {
 
   init() {
     this.state = loadState();
-    // Migrate old plan data: ensure all distances are integers
+    // Migrate old plan data: fix distances
     if (this.state && this.state.plan) {
       let migrated = false;
       for (const week of this.state.plan) {
         for (const day of week.days) {
+          // Recalculate interval distances: warmup 2km + reps + cooldown 2km
+          if (day.type === 'interval' && day.detail) {
+            const correctDist = roundKm(2 + parseRepsDist(day.detail.reps) + 2);
+            if (day.dist !== correctDist) {
+              day.dist = correctDist;
+              migrated = true;
+            }
+          }
+          // Ensure all distances are integers
           if (day.dist !== Math.round(day.dist)) {
             day.dist = Math.round(day.dist);
             migrated = true;

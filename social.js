@@ -21,6 +21,11 @@ const Social = {
       this.db = firebase.firestore();
       this.enabled = true;
 
+      // Handle redirect result from Google login
+      this.auth.getRedirectResult().catch(e => {
+        console.error('Redirect login error:', e);
+      });
+
       this.auth.onAuthStateChanged(user => {
         this.currentUser = user;
         App.onAuthChanged(user);
@@ -32,18 +37,10 @@ const Social = {
   },
 
   // --- Auth ---
-  async login() {
-    if (!this.enabled) return null;
-    try {
-      const provider = new firebase.auth.GoogleAuthProvider();
-      const result = await this.auth.signInWithPopup(provider);
-      return result.user;
-    } catch (e) {
-      if (e.code !== 'auth/popup-closed-by-user') {
-        console.error('Login error:', e);
-      }
-      return null;
-    }
+  login() {
+    if (!this.enabled) return;
+    const provider = new firebase.auth.GoogleAuthProvider();
+    this.auth.signInWithRedirect(provider);
   },
 
   async logout() {
