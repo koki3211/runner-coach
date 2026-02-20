@@ -77,8 +77,12 @@ const Social = {
 
   // --- Profile & Sync ---
   async syncToCloud(state) {
-    if (!this.enabled || !this.currentUser || !state) return;
+    if (!this.enabled || !this.currentUser) return;
+    if (!state) state = {};
+    // Always include shortId to prevent accidental loss
+    const shortId = await this.getOrCreateUserId();
     const data = {
+      shortId: shortId,
       displayName: this.currentUser.displayName || '',
       photoURL: this.currentUser.photoURL || '',
       settings: {

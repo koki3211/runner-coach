@@ -315,9 +315,10 @@ const App = {
     }
 
     this.renderFriends();
-    // Sync to cloud
-    if (user && this.state && this.state.plan) {
-      Social.syncToCloud(this.state);
+    // Sync to cloud — always sync when logged in (even without a plan)
+    // so displayName/photoURL/shortId are in Firestore for friend search
+    if (user && typeof Social !== 'undefined' && Social.enabled) {
+      Social.syncToCloud(this.state || {});
     }
   },
 
