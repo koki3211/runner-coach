@@ -123,11 +123,8 @@ function generatePlanData(raceName, raceDate, raceType, targetTime) {
     const longDist = roundKm((longBase + w * 1.2) * scale * paceScale * taperFactor * volMult);
 
     const intv = INTERVALS[w % INTERVALS.length];
-    // Interval distance = warmup 2km + reps distance + rest jog distance + cooldown 2km
-    const repsDist = parseRepsDist(intv.reps);
-    const repsCount = parseInt((intv.reps.match(/[×x]\s*(\d+)/i) || [, '1'])[1]);
-    const restDist = parseRestDist(intv.rest) * (repsCount - 1) / 1000;
-    const intervalDist = roundKm(2 + repsDist + restDist + 2);
+    // Interval distance = reps distance only (e.g. 400m×8 = 3.2km)
+    const intervalDist = parseRepsDist(intv.reps);
     const weekStart = addDays(startMonday, w * 7);
 
     const days = [
@@ -161,17 +158,20 @@ function generatePlanData(raceName, raceDate, raceType, targetTime) {
 
 function roundKm(n) { return Math.round(n); }
 
+// Format distance: intervals show 1 decimal (e.g. 3.2), others show integer
+function formatDist(dist, type) {
+  if (type === 'interval') {
+    const d = Math.round(dist * 10) / 10;
+    return d % 1 === 0 ? String(d) : d.toFixed(1);
+  }
+  return String(Math.round(dist));
+}
+
 // Parse reps string like "800m × 5" → total km (e.g. 4.0)
 function parseRepsDist(repsStr) {
   const m = repsStr.match(/(\d+)m\s*[×x]\s*(\d+)/i);
   if (!m) return 3;
   return (parseInt(m[1]) * parseInt(m[2])) / 1000;
-}
-
-// Parse rest string like "200mジョグ" → meters (e.g. 200)
-function parseRestDist(restStr) {
-  const m = restStr.match(/(\d+)m/);
-  return m ? parseInt(m[1]) : 200;
 }
 
 // --- Monthly aggregation ---
@@ -207,19 +207,16 @@ const App = {
       let migrated = false;
       for (const week of this.state.plan) {
         for (const day of week.days) {
-          // Recalculate interval distances: warmup 2km + reps + rest jog + cooldown 2km
+          // Recalculate interval distances: reps distance only
           if (day.type === 'interval' && day.detail) {
-            const rd = parseRepsDist(day.detail.reps);
-            const rc = parseInt((day.detail.reps.match(/[×x]\s*(\d+)/i) || [, '1'])[1]);
-            const rstD = parseRestDist(day.detail.rest) * (rc - 1) / 1000;
-            const correctDist = roundKm(2 + rd + rstD + 2);
+            const correctDist = parseRepsDist(day.detail.reps);
             if (day.dist !== correctDist) {
               day.dist = correctDist;
               migrated = true;
             }
           }
-          // Ensure all distances are integers
-          if (day.dist !== Math.round(day.dist)) {
+          // Ensure non-interval distances are integers
+          if (day.type !== 'interval' && day.dist !== Math.round(day.dist)) {
             day.dist = Math.round(day.dist);
             migrated = true;
           }
@@ -524,7 +521,7 @@ const App = {
         '<div class="bar-label">' + m.label + '</div></div>';
     }).join('');
 
-    const heroDetail = w.dist > 0 ? '合計 ' + Math.round(w.dist) + 'km・推定 ' + estimateTime(w.dist, w.pace) : '休養日';
+    const heroDetail = w.dist > 0 ? '合計 ' + formatDist(w.dist, w.type) + 'km・推定 ' + estimateTime(w.dist, w.pace) : '休養日';
 
     const btnHTML = w.type === 'rest' ? ''
       : done
@@ -576,7 +573,7 @@ const App = {
 
       for (const day of week.days) {
         const done = this.isCompleted(day.date);
-        const distLabel = day.dist > 0 ? Math.round(day.dist) + 'km' : '\u2014';
+        const distLabel = day.dist > 0 ? formatDist(day.dist, day.type) + 'km' : '\u2014';
         const d = fromISO(day.date);
         const dateLabel = (d.getMonth() + 1) + '/' + d.getDate();
         html += '<li class="plan-item" onclick="App.openEditWorkout(\'' + day.date + '\')">' +
