@@ -53,6 +53,60 @@ const Social = {
     await this.auth.signOut();
   },
 
+  // --- User ID (short shareable code) ---
+  generateShortId() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let id = '';
+    for (let i = 0; i < 8; i++) id += chars[Math.floor(Math.random() * chars.length)];
+    return id;
+  },
+
+  async getOrCreateUserId() {
+    if (!this.enabled || !this.currentUser) return null;
+    const uid = this.currentUser.uid;
+    const doc = await this.db.collection('users').doc(uid).get();
+    if (doc.exists && doc.data().shortId) return doc.data().shortId;
+    const shortId = this.generateShortId();
+    await this.db.collection('users').doc(uid).set({ shortId }, { merge: true });
+    return shortId;
+  },
+
+  async searchUserByShortId(shortId) {
+    if (!this.enabled) return [];
+    const snap = await this.db.collection('users')
+      .where('shortId', '==', shortId.toUpperCase().trim())
+      .limit(5)
+      .get();
+    return snap.docs
+      .filter(d => d.id !== this.currentUser.uid)
+      .map(d => ({ uid: d.id, ...d.data() }));
+  },
+
+  async sendFriendRequestByUid(toUid, toName) {
+    if (!this.enabled || !this.currentUser) return false;
+    // Check if already friends
+    const myProfile = await this.getUserProfile(this.currentUser.uid);
+    if (myProfile && myProfile.friends && myProfile.friends.includes(toUid)) return false;
+    // Check existing pending request
+    const existing = await this.db.collection('friendRequests')
+      .where('fromUid', '==', this.currentUser.uid)
+      .where('toUid', '==', toUid)
+      .where('status', '==', 'pending')
+      .get();
+    if (!existing.empty) return false;
+
+    await this.db.collection('friendRequests').add({
+      fromUid: this.currentUser.uid,
+      fromName: this.currentUser.displayName || this.currentUser.email,
+      fromPhoto: this.currentUser.photoURL || '',
+      toUid: toUid,
+      toEmail: '', // kept for backward compat
+      status: 'pending',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return true;
+  },
+
   // --- User Profile ---
   async saveUserProfile(settings, completed) {
     if (!this.enabled || !this.currentUser) return;
@@ -108,11 +162,23 @@ const Social = {
 
   async getIncomingRequests() {
     if (!this.enabled || !this.currentUser) return [];
-    const snap = await this.db.collection('friendRequests')
-      .where('toEmail', '==', this.currentUser.email.toLowerCase())
-      .where('status', '==', 'pending')
-      .get();
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    // Check by email (legacy) and by UID (new)
+    const [byEmail, byUid] = await Promise.all([
+      this.db.collection('friendRequests')
+        .where('toEmail', '==', this.currentUser.email.toLowerCase())
+        .where('status', '==', 'pending')
+        .get(),
+      this.db.collection('friendRequests')
+        .where('toUid', '==', this.currentUser.uid)
+        .where('status', '==', 'pending')
+        .get()
+    ]);
+    const seen = new Set();
+    const results = [];
+    for (const d of [...byEmail.docs, ...byUid.docs]) {
+      if (!seen.has(d.id)) { seen.add(d.id); results.push({ id: d.id, ...d.data() }); }
+    }
+    return results;
   },
 
   async acceptRequest(requestId, fromUid) {

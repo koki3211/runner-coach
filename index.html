@@ -474,6 +474,96 @@
       cursor: pointer;
     }
 
+    /* My ID Card */
+    .my-id-card {
+      text-align: center; padding: var(--space-lg) var(--space-base);
+    }
+    .my-id-code {
+      font-family: var(--font-family-data); font-size: var(--font-size-title1);
+      font-weight: var(--font-weight-bold); letter-spacing: 3px;
+      color: var(--color-brand-primary); margin-bottom: var(--space-md);
+    }
+    .my-id-actions {
+      display: flex; gap: var(--space-sm); justify-content: center;
+    }
+    .id-copy-btn {
+      display: inline-flex; align-items: center; gap: var(--space-xs);
+      padding: var(--space-sm) var(--space-base);
+      background: var(--color-fill-tertiary); border: none;
+      border-radius: var(--radius-full); cursor: pointer;
+      font-family: var(--font-family-body); font-size: var(--font-size-caption1);
+      font-weight: var(--font-weight-semibold); color: var(--color-label-primary);
+      transition: transform var(--duration-fast) var(--easing-spring);
+    }
+    .id-copy-btn:active { transform: scale(0.95); }
+    .id-copy-btn.line-btn {
+      background: #06C755; color: #fff;
+    }
+
+    /* Plan date column */
+    .plan-item .plan-date {
+      width: 42px; font-size: var(--font-size-caption1);
+      font-family: var(--font-family-data);
+      color: var(--color-label-tertiary); flex-shrink: 0;
+    }
+    .plan-item-race {
+      background: linear-gradient(135deg, rgba(255,59,48,0.06), rgba(255,149,0,0.06)) !important;
+    }
+    .plan-race-label {
+      color: var(--color-interval) !important;
+      font-weight: var(--font-weight-bold) !important;
+      font-size: var(--font-size-headline) !important;
+    }
+
+    /* Edit Workout Overlay */
+    .edit-overlay {
+      position: fixed; inset: 0; z-index: 900; display: none;
+    }
+    .edit-overlay.show { display: block; }
+    .edit-backdrop {
+      position: absolute; inset: 0; background: rgba(0,0,0,0.4);
+      animation: fadeIn var(--duration-fast) var(--easing-default);
+    }
+    .edit-sheet {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: var(--color-bg-primary);
+      border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+      padding: var(--space-md) var(--space-base) calc(var(--space-2xl) + var(--safe-area-bottom));
+      animation: slideSheetUp var(--duration-normal) var(--easing-spring);
+    }
+    @keyframes slideSheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .edit-sheet-handle {
+      width: 36px; height: 4px; border-radius: 2px;
+      background: var(--color-fill-primary); margin: 0 auto var(--space-base);
+    }
+    .edit-sheet-title {
+      font-size: var(--font-size-headline); font-weight: var(--font-weight-semibold);
+      text-align: center; margin-bottom: var(--space-lg);
+    }
+    .edit-field { margin-bottom: var(--space-lg); }
+    .edit-field .form-label { margin-bottom: var(--space-sm); }
+    .edit-select {
+      -webkit-appearance: none; appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238E8E93' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 12px center;
+      padding-right: 36px;
+    }
+    .edit-actions {
+      display: flex; gap: var(--space-md); margin-top: var(--space-lg);
+    }
+    .edit-cancel-btn {
+      flex: 1; padding: var(--space-base);
+      background: var(--color-fill-tertiary); color: var(--color-label-primary);
+      border: none; border-radius: var(--radius-md);
+      font-family: var(--font-family-body); font-size: var(--font-size-headline);
+      font-weight: var(--font-weight-semibold); cursor: pointer;
+      transition: transform var(--duration-fast) var(--easing-spring);
+    }
+    .edit-cancel-btn:active { transform: scale(0.97); }
+    .edit-save-btn {
+      flex: 1; width: auto; margin: 0;
+    }
+
     /* Utility */
     .mx { margin-left: var(--space-base); margin-right: var(--space-base); }
     .text-secondary { color: var(--color-label-secondary); }
@@ -527,6 +617,9 @@
   <button class="cta-btn" id="generate-btn" onclick="App.generatePlan()">プランを自動作成</button>
   <div class="text-sm text-secondary" style="text-align:center;padding-bottom:var(--space-lg)">目標タイムからペースを自動算出します</div>
 </div>
+
+<!-- EDIT WORKOUT OVERLAY -->
+<div id="edit-overlay" class="edit-overlay"></div>
 
 <!-- COMPLETION OVERLAY -->
 <div id="completion-overlay" class="completion-overlay">

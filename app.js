@@ -623,22 +623,44 @@ const App = {
       `${this.state.raceName}・${raceTypeLabel}・目標 ${this.state.targetTime}`;
 
     const todayStr = toISO(today());
+    const raceDate = this.state.raceDate || '';
     let html = '';
 
     for (const week of this.state.plan) {
-      const label = week.isRecovery ? `Week ${week.weekNum} — ${week.phaseName} (回復週)` : `Week ${week.weekNum} — ${week.phaseName}`;
+      // Week header with date range
+      const firstDate = fromISO(week.days[0].date);
+      const lastDate = fromISO(week.days[6].date);
+      const dateRange = `${String(firstDate.getMonth()+1).padStart(2,'0')}/${String(firstDate.getDate()).padStart(2,'0')} - ${String(lastDate.getMonth()+1).padStart(2,'0')}/${String(lastDate.getDate()).padStart(2,'0')}`;
+      const recoveryTag = week.isRecovery ? ' (回復週)' : '';
+      const label = `Week ${week.weekNum} — ${week.phaseName}${recoveryTag}　${dateRange}`;
       html += `<div class="plan-week"><div class="plan-week-header mt-lg">${label}</div><ul class="plan-list mx">`;
 
       for (const day of week.days) {
         const done = this.isCompleted(day.date);
-        const distLabel = day.dist > 0 ? day.dist + 'km' : '—';
-        html += `<li class="plan-item">
-          <span class="plan-dot" style="background:${TYPE_COLORS[day.type]}"></span>
-          <span class="plan-day">${day.dayJa}</span>
-          <span class="plan-name">${day.name}</span>
-          <span class="plan-dist">${distLabel}</span>
-          <span class="plan-check${done ? ' done' : ''}" onclick="App.toggleComplete('${day.date}')"></span>
-        </li>`;
+        const isRaceDay = day.date === raceDate;
+        const d = fromISO(day.date);
+        const dateLabel = `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+
+        if (isRaceDay) {
+          // Race day special row
+          html += `<li class="plan-item plan-item-race">
+            <span class="plan-dot" style="background:var(--color-interval)"></span>
+            <span class="plan-day">${day.dayJa}</span>
+            <span class="plan-date">${dateLabel}</span>
+            <span class="plan-name plan-race-label">レース本番!</span>
+            <span class="plan-check${done ? ' done' : ''}" onclick="App.toggleComplete('${day.date}')"></span>
+          </li>`;
+        } else {
+          const distLabel = day.dist > 0 ? day.dist + 'km' : '—';
+          html += `<li class="plan-item" onclick="App.openEditWorkout(${this.state.plan.indexOf(week)}, ${week.days.indexOf(day)}, event)">
+            <span class="plan-dot" style="background:${TYPE_COLORS[day.type]}"></span>
+            <span class="plan-day">${day.dayJa}</span>
+            <span class="plan-date">${dateLabel}</span>
+            <span class="plan-name">${day.name}</span>
+            <span class="plan-dist">${distLabel}</span>
+            <span class="plan-check${done ? ' done' : ''}" onclick="event.stopPropagation();App.toggleComplete('${day.date}')"></span>
+          </li>`;
+        }
       }
       html += '</ul></div>';
     }
@@ -728,18 +750,39 @@ const App = {
 
     el.innerHTML = '<div class="empty-state"><div class="empty-text">読み込み中...</div></div>';
 
+    // Get user's short ID
+    const myShortId = await Social.getOrCreateUserId();
+
     // Friend request area
     const requests = await Social.getIncomingRequests();
     const friends = await Social.loadFriendsData();
 
     let html = '';
 
-    // Add friend section
+    // My ID section
     html += `<div class="section">
+      <div class="section-header">あなたのID</div>
+      <div class="card my-id-card">
+        <div class="my-id-code">${escapeHtml(myShortId || '---')}</div>
+        <div class="my-id-actions">
+          <button class="id-copy-btn" onclick="App.copyMyId('${escapeHtml(myShortId || '')}')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+            コピー
+          </button>
+          <button class="id-copy-btn line-btn" onclick="App.inviteViaLine('${escapeHtml(myShortId || '')}')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.064-.023.134-.034.2-.034.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63.346 0 .628.285.628.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.282.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/></svg>
+            LINEで招待
+          </button>
+        </div>
+      </div>
+    </div>`;
+
+    // Add friend section
+    html += `<div class="section" style="padding-top:0">
       <div class="section-header">仲間を追加</div>
       <div class="card" style="display:flex;gap:var(--space-sm)">
-        <input class="form-input" id="friend-email-input" type="email" placeholder="メールアドレスで検索" style="flex:1;margin:0">
-        <button class="cta-btn" style="width:auto;margin:0;padding:var(--space-sm) var(--space-base);font-size:var(--font-size-subhead)" onclick="App.sendFriendReq()">追加</button>
+        <input class="form-input" id="friend-id-input" type="text" placeholder="ユーザーIDを入力" style="flex:1;margin:0" maxlength="8">
+        <button class="cta-btn" style="width:auto;margin:0;padding:var(--space-sm) var(--space-base);font-size:var(--font-size-subhead)" onclick="App.sendFriendReqById()">追加</button>
       </div>
     </div>`;
 
@@ -798,24 +841,42 @@ const App = {
       html += '</div>';
     } else if (requests.length === 0) {
       html += `<div class="empty-state" style="padding-top:var(--space-xl)"><div class="empty-icon">\u{1F465}</div>
-        <div class="empty-text">まだ仲間がいません<br>メールアドレスで友達を追加しよう</div></div>`;
+        <div class="empty-text">まだ仲間がいません<br>ユーザーIDで友達を追加するか<br>LINEで招待しよう</div></div>`;
     }
 
     el.innerHTML = html;
   },
 
-  async sendFriendReq() {
-    const input = document.getElementById('friend-email-input');
+  async sendFriendReqById() {
+    const input = document.getElementById('friend-id-input');
     if (!input) return;
-    const email = input.value.trim();
-    if (!email) { alert('メールアドレスを入力してください'); return; }
-    const ok = await Social.sendFriendRequest(email);
+    const shortId = input.value.trim().toUpperCase();
+    if (!shortId) { alert('ユーザーIDを入力してください'); return; }
+    const users = await Social.searchUserByShortId(shortId);
+    if (users.length === 0) { alert('ユーザーが見つかりません'); return; }
+    const target = users[0];
+    const ok = await Social.sendFriendRequestByUid(target.uid, target.displayName || target.email);
     if (ok) {
-      alert('リクエストを送信しました');
+      alert(`${target.displayName || target.email} にリクエストを送信しました`);
       input.value = '';
     } else {
-      alert('送信できませんでした（既に送信済みか、ユーザーが見つかりません）');
+      alert('送信できませんでした（既に送信済みか、友達です）');
     }
+  },
+
+  copyMyId(id) {
+    if (!id) return;
+    navigator.clipboard.writeText(id).then(() => {
+      const btn = document.querySelector('.id-copy-btn');
+      if (btn) { const orig = btn.innerHTML; btn.textContent = 'コピー済み!'; setTimeout(() => { btn.innerHTML = orig; }, 1500); }
+    }).catch(() => { prompt('IDをコピー:', id); });
+  },
+
+  inviteViaLine(id) {
+    if (!id) return;
+    const msg = `Runner Coachで一緒にトレーニングしよう！\n私のユーザーID: ${id}\nアプリで「仲間」タブからこのIDを入力して友達になってね！`;
+    const url = 'https://line.me/R/msg/text/?' + encodeURIComponent(msg);
+    window.open(url, '_blank');
   },
 
   async acceptFriend(requestId, fromUid) {
@@ -826,6 +887,87 @@ const App = {
   async declineFriend(requestId) {
     await Social.declineRequest(requestId);
     this.renderFriendsLive();
+  },
+
+  // --- Edit Workout ---
+  openEditWorkout(weekIdx, dayIdx, event) {
+    // Don't open editor when clicking the check button
+    if (event && event.target.classList.contains('plan-check')) return;
+
+    const day = this.state.plan[weekIdx].days[dayIdx];
+    if (!day) return;
+
+    const d = fromISO(day.date);
+    const dateLabel = `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} (${day.dayJa})`;
+
+    // Workout type options
+    const typeOptions = [
+      { value: 'recovery', label: 'リカバリージョグ' },
+      { value: 'rest', label: 'レスト' },
+      { value: 'easy', label: 'イージーラン' },
+      { value: 'interval', label: 'インターバル' },
+      { value: 'tempo', label: 'テンポラン' },
+      { value: 'long', label: 'ロングラン' },
+      { value: 'cross', label: 'クロストレーニング' }
+    ];
+    const optionsHTML = typeOptions.map(o =>
+      `<option value="${o.value}"${day.type === o.value ? ' selected' : ''}>${o.label}</option>`
+    ).join('');
+
+    const overlay = document.getElementById('edit-overlay');
+    overlay.innerHTML = `
+      <div class="edit-backdrop" onclick="App.closeEditWorkout()"></div>
+      <div class="edit-sheet">
+        <div class="edit-sheet-handle"></div>
+        <div class="edit-sheet-title">${dateLabel} のメニュー編集</div>
+        <div class="edit-field">
+          <label class="form-label">練習メニュー</label>
+          <select class="form-input edit-select" id="edit-type">${optionsHTML}</select>
+        </div>
+        <div class="edit-field">
+          <label class="form-label">距離 (km)</label>
+          <input class="form-input" id="edit-dist" type="number" inputmode="decimal" min="0" max="99" step="0.1" value="${day.dist}">
+        </div>
+        <div class="edit-actions">
+          <button class="edit-cancel-btn" onclick="App.closeEditWorkout()">キャンセル</button>
+          <button class="cta-btn edit-save-btn" onclick="App.saveEditWorkout(${weekIdx},${dayIdx})">保存</button>
+        </div>
+      </div>`;
+    overlay.classList.add('show');
+  },
+
+  closeEditWorkout() {
+    const overlay = document.getElementById('edit-overlay');
+    overlay.classList.remove('show');
+    setTimeout(() => { overlay.innerHTML = ''; }, 300);
+  },
+
+  saveEditWorkout(weekIdx, dayIdx) {
+    const typeEl = document.getElementById('edit-type');
+    const distEl = document.getElementById('edit-dist');
+    if (!typeEl || !distEl) return;
+
+    const newType = typeEl.value;
+    const newDist = Math.round(parseFloat(distEl.value || '0') * 10) / 10;
+    const day = this.state.plan[weekIdx].days[dayIdx];
+
+    day.type = newType;
+    day.name = TYPE_JA[newType] || newType;
+    day.dist = newType === 'rest' ? 0 : Math.max(0, newDist);
+    if (newType === 'rest') day.pace = '-';
+    else if (this.state.paces[newType]) day.pace = this.state.paces[newType];
+
+    // Recalculate week total
+    this.state.plan[weekIdx].totalDist = Math.round(
+      this.state.plan[weekIdx].days.reduce((s, d) => s + d.dist, 0) * 10
+    ) / 10;
+
+    saveState(this.state);
+    this.closeEditWorkout();
+    this.renderPlan();
+    this.renderToday();
+    this.renderMonthlyChart();
+    this.syncToCloud();
   },
 
   // --- Toggle Completion ---
