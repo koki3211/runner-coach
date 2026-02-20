@@ -17,8 +17,8 @@ const TYPE_LABELS = {
   easy: 'Easy', cross: 'Cross', tempo: 'Tempo', long: 'Long'
 };
 const TYPE_JA = {
-  recovery: 'リカバリージョグ', rest: 'レスト', interval: 'インターバル',
-  easy: 'イージーラン', cross: 'クロストレーニング', tempo: 'テンポラン', long: 'ロングラン'
+  recovery: 'ジョグ（軽め）', rest: '休息', interval: 'インターバル',
+  easy: 'ジョグ', cross: 'クロストレーニング', tempo: 'テンポ走', long: 'ロング走'
 };
 
 const INTERVALS = [
@@ -98,49 +98,64 @@ function loadState() {
 function saveState(s) { localStorage.setItem(STORE_KEY, JSON.stringify(s)); }
 
 // --- Plan Generation ---
-function generatePlanData(raceType, targetSeconds) {
+// Generate a training plan that fits between now and race day.
+// Weekly pattern: 月=休息, 火=ジョグ, 水=インターバル, 木=ジョグ, 金=ジョグ, 土=テンポ走, 日=ロング走
+function generatePlanData(raceType, targetSeconds, raceDate) {
   const paces = calcPaces(targetSeconds, raceType);
   const dist = RACE_DISTANCES[raceType] || 42.195;
-  const totalWeeks = 12;
 
-  // Scale distances by race type and speed
+  // Calculate weeks from next Monday to race week
+  const monday = getMonday(addDays(today(), 1));
+  const raceDateObj = fromISO(raceDate);
+  const diffDays = Math.floor((raceDateObj - monday) / (24 * 60 * 60 * 1000));
+  const totalWeeks = Math.max(1, Math.min(24, Math.ceil(diffDays / 7)));
+
+  // Scale distances by race type and runner speed
   const racePaceSec = targetSeconds / dist;
-  // Faster runners (lower pace) get more volume
   const scale = raceType === 'half' ? 0.75 : (racePaceSec < 270 ? 1.2 : racePaceSec < 330 ? 1.0 : 0.85);
 
   const weeks = [];
-  const monday = getMonday(addDays(today(), 1));
 
   for (let w = 0; w < totalWeeks; w++) {
+    // Proportional periodization
+    const pct = w / totalWeeks;
     let phase, phaseName;
-    if (w < 3) { phase = 'base'; phaseName = '基礎期'; }
-    else if (w < 7) { phase = 'build'; phaseName = 'ビルドアップ期'; }
-    else if (w < 10) { phase = 'peak'; phaseName = 'ピーク期'; }
-    else { phase = 'taper'; phaseName = 'テーパリング期'; }
+    if (pct < 0.25)      { phase = 'base';  phaseName = '基礎期'; }
+    else if (pct < 0.60) { phase = 'build'; phaseName = 'ビルドアップ期'; }
+    else if (pct < 0.85) { phase = 'peak';  phaseName = 'ピーク期'; }
+    else                 { phase = 'taper'; phaseName = 'テーパリング期'; }
 
-    const isRecovery = (w === 3 || w === 7);
+    // Recovery weeks at phase transitions (only for plans >= 8 weeks)
+    const baseEnd = Math.ceil(totalWeeks * 0.25);
+    const buildEnd = Math.ceil(totalWeeks * 0.60);
+    const isRecovery = totalWeeks >= 8 && (w === baseEnd || w === buildEnd);
     const volMult = isRecovery ? 0.7 : 1.0;
-    const progress = 1 + (w / totalWeeks) * 0.7;
-    const taperFactor = phase === 'taper' ? 0.65 - (w - 10) * 0.1 : 1.0;
+
+    const progress = 1 + (pct * 0.7);
+    const taperFactor = phase === 'taper' ? 0.65 - ((pct - 0.85) / 0.15) * 0.2 : 1.0;
     const factor = progress * taperFactor * volMult;
 
-    const recoveryDist = Math.round(5 * scale * Math.min(factor, 1.3) * 10) / 10;
-    const easyDist = Math.round(7 * scale * Math.min(factor, 1.5) * 10) / 10;
+    // Distance calculations
+    const jogDist = Math.round(7 * scale * Math.min(factor, 1.5) * 10) / 10;
+    const jogShortDist = Math.round(5 * scale * Math.min(factor, 1.3) * 10) / 10;
     const intervalDist = Math.round(8 * scale * Math.min(factor, 1.4) * 10) / 10;
     const tempoDist = Math.round(10 * scale * factor * 10) / 10;
-    const longDist = Math.round((14 + w * 1.5) * scale * taperFactor * volMult * 10) / 10;
+    const longBase = 14 + (pct * 16); // 14km → 30km progression
+    const maxLong = raceType === 'half' ? 18 : 32;
+    const longDist = Math.min(maxLong, Math.round(longBase * scale * taperFactor * volMult * 10) / 10);
 
     const intv = INTERVALS[w % INTERVALS.length];
     const weekStart = addDays(monday, w * 7);
 
+    // Weekly pattern: 休息1日 + ジョグ3日 + インターバル1日 + テンポ走1日 + ロング走1日
     const days = [
-      { type: 'recovery', name: 'リカバリージョグ', dist: recoveryDist, pace: paces.recovery },
-      { type: 'rest', name: 'レスト', dist: 0, pace: '-' },
+      { type: 'rest',     name: '休息',     dist: 0,            pace: '-' },
+      { type: 'easy',     name: 'ジョグ',    dist: jogDist,      pace: paces.easy },
       { type: 'interval', name: intv.reps + ' インターバル', dist: intervalDist, pace: paces.interval, detail: intv },
-      { type: 'easy', name: 'イージーラン', dist: easyDist, pace: paces.easy },
-      { type: w % 2 === 0 ? 'rest' : 'cross', name: w % 2 === 0 ? 'レスト' : 'クロストレーニング', dist: 0, pace: '-' },
-      { type: 'tempo', name: 'テンポラン', dist: tempoDist, pace: paces.tempo },
-      { type: 'long', name: 'ロングラン', dist: longDist, pace: paces.long }
+      { type: 'easy',     name: 'ジョグ',    dist: jogShortDist, pace: paces.easy },
+      { type: 'easy',     name: 'ジョグ',    dist: jogDist,      pace: paces.easy },
+      { type: 'tempo',    name: 'テンポ走',   dist: tempoDist,    pace: paces.tempo },
+      { type: 'long',     name: 'ロング走',   dist: longDist,     pace: paces.long }
     ];
 
     const weekDays = days.map((d, i) => ({
@@ -412,7 +427,7 @@ const App = {
     const paces = calcPaces(targetSec, raceType);
     const dist = RACE_DISTANCES[raceType];
     const racePace = formatPace(targetSec / dist);
-    const weeks = generatePlanData(raceType, targetSec);
+    const weeks = generatePlanData(raceType, targetSec, raceDate);
 
     this.state = {
       raceName, raceDate, raceType, targetTime,
@@ -489,7 +504,7 @@ const App = {
     const w = workout || week.days[0];
     const heroType = w.type;
     const heroName = w.name;
-    const heroDist = w.dist > 0 ? `合計 ${w.dist}km` : '休養日';
+    const heroDist = w.dist > 0 ? `合計 ${w.dist}km` : '休息日';
     const heroDetail = w.dist > 0 ? `${heroDist}・推定 ${estimateTime(w.dist, w.pace)}` : heroDist;
 
     let stepsHTML = '';
@@ -902,13 +917,11 @@ const App = {
 
     // Workout type options
     const typeOptions = [
-      { value: 'recovery', label: 'リカバリージョグ' },
-      { value: 'rest', label: 'レスト' },
-      { value: 'easy', label: 'イージーラン' },
+      { value: 'easy', label: 'ジョグ' },
       { value: 'interval', label: 'インターバル' },
-      { value: 'tempo', label: 'テンポラン' },
-      { value: 'long', label: 'ロングラン' },
-      { value: 'cross', label: 'クロストレーニング' }
+      { value: 'tempo', label: 'テンポ走' },
+      { value: 'long', label: 'ロング走' },
+      { value: 'rest', label: '休息' }
     ];
     const optionsHTML = typeOptions.map(o =>
       `<option value="${o.value}"${day.type === o.value ? ' selected' : ''}>${o.label}</option>`
