@@ -8,19 +8,20 @@ const DAYS_EN = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const MONTHS_JA = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
 
 const TYPE_COLORS = {
-  recovery: 'var(--color-easy-run)', rest: 'var(--color-rest-day)',
-  interval: 'var(--color-interval)', easy: 'var(--color-easy-run)',
-  cross: 'var(--color-cross-train)', tempo: 'var(--color-tempo-run)',
+  jog: 'var(--color-easy-run)', rest: 'var(--color-rest-day)',
+  interval: 'var(--color-interval)', tempo: 'var(--color-tempo-run)',
   long: 'var(--color-long-run)'
 };
 const TYPE_LABELS = {
-  recovery: 'Recovery', rest: 'Rest', interval: 'Intv',
-  easy: 'Easy', cross: 'Cross', tempo: 'Tempo', long: 'Long'
+  jog: 'Jog', rest: 'Rest', interval: 'Intv',
+  tempo: 'Tempo', long: 'Long'
 };
 const TYPE_JA = {
-  recovery: 'リカバリージョグ', rest: 'レスト', interval: 'インターバル',
-  easy: 'イージーラン', cross: 'クロストレーニング', tempo: 'テンポラン', long: 'ロングラン'
+  jog: 'ジョグ', rest: 'レスト', interval: 'インターバル',
+  tempo: 'テンポラン', long: 'ロングラン'
 };
+// Migration map for old type names
+const TYPE_MIGRATION = { recovery: 'jog', easy: 'jog', cross: 'jog' };
 
 const INTERVALS = [
   { reps: '400m \u00d7 8', rest: '200m\u30b8\u30e7\u30b0' },
@@ -70,11 +71,10 @@ function calcPaces(targetTime, raceType) {
 
   return {
     race: racePace,
-    easy: racePace * 1.2,
+    jog: racePace * 1.2,
     tempo: racePace * 0.97,
     interval: racePace * 0.88,
-    long: racePace * 1.1,
-    recovery: racePace * 1.3
+    long: racePace * 1.1
   };
 }
 
@@ -116,8 +116,8 @@ function generatePlanData(raceName, raceDate, raceType, targetTime) {
     const taperFactor = phase === 'taper' ? 0.7 - (frac - 0.85) * 2 : 1.0;
     const factor = progress * taperFactor * volMult * scale * paceScale;
 
-    const recoveryDist = roundKm(5 * Math.min(factor, 1.3));
-    const easyDist = roundKm(7 * Math.min(factor, 1.5));
+    const jogLightDist = roundKm(5 * Math.min(factor, 1.3));
+    const jogDist = roundKm(7 * Math.min(factor, 1.5));
     const tempoDist = roundKm(10 * factor);
     const longBase = raceType === 'half' ? 10 : 14;
     const longDist = roundKm((longBase + w * 1.2) * scale * paceScale * taperFactor * volMult);
@@ -128,11 +128,11 @@ function generatePlanData(raceName, raceDate, raceType, targetTime) {
     const weekStart = addDays(startMonday, w * 7);
 
     const days = [
-      { type: 'recovery', name: 'リカバリージョグ', dist: recoveryDist, pace: formatPace(paces.recovery) },
+      { type: 'jog', name: 'ジョグ', dist: jogLightDist, pace: formatPace(paces.jog) },
       { type: 'rest', name: 'レスト', dist: 0, pace: '-' },
-      { type: 'interval', name: intv.reps + ' インターバル', dist: intervalDist, pace: formatPace(paces.interval), detail: intv },
-      { type: 'easy', name: 'イージーラン', dist: easyDist, pace: formatPace(paces.easy) },
-      { type: w % 2 === 0 ? 'rest' : 'cross', name: w % 2 === 0 ? 'レスト' : 'クロストレーニング', dist: 0, pace: '-' },
+      { type: 'interval', name: 'インターバル', dist: intervalDist, pace: formatPace(paces.interval), detail: intv },
+      { type: 'jog', name: 'ジョグ', dist: jogDist, pace: formatPace(paces.jog) },
+      { type: w % 2 === 0 ? 'rest' : 'jog', name: w % 2 === 0 ? 'レスト' : 'ジョグ', dist: w % 2 === 0 ? 0 : jogLightDist, pace: w % 2 === 0 ? '-' : formatPace(paces.jog) },
       { type: 'tempo', name: 'テンポラン', dist: tempoDist, pace: formatPace(paces.tempo) },
       { type: 'long', name: 'ロングラン', dist: longDist, pace: formatPace(paces.long) }
     ];
@@ -202,11 +202,17 @@ const App = {
 
   init() {
     this.state = loadState();
-    // Migrate old plan data: fix distances
+    // Migrate old plan data: fix distances and type names
     if (this.state && this.state.plan) {
       let migrated = false;
       for (const week of this.state.plan) {
         for (const day of week.days) {
+          // Migrate old type names (recovery/easy/cross → jog)
+          if (TYPE_MIGRATION[day.type]) {
+            day.type = TYPE_MIGRATION[day.type];
+            day.name = TYPE_JA[day.type] || day.name;
+            migrated = true;
+          }
           // Recalculate interval distances: reps distance only
           if (day.type === 'interval' && day.detail) {
             const correctDist = parseRepsDist(day.detail.reps);
@@ -226,6 +232,11 @@ const App = {
           week.totalDist = correctTotal;
           migrated = true;
         }
+      }
+      // Migrate paces: add jog if missing
+      if (this.state.paces && !this.state.paces.jog) {
+        this.state.paces.jog = this.state.paces.easy || this.state.paces.recovery || '6:00';
+        migrated = true;
       }
       if (migrated) saveState(this.state);
     }
@@ -371,11 +382,10 @@ const App = {
     this.state = {
       raceName, raceDate, raceType, targetTime,
       paces: {
-        easy: formatPace(paces.easy),
+        jog: formatPace(paces.jog),
         tempo: formatPace(paces.tempo),
         interval: formatPace(paces.interval),
         long: formatPace(paces.long),
-        recovery: formatPace(paces.recovery),
         race: formatPace(paces.race)
       },
       plan: weeks,
@@ -454,25 +464,25 @@ const App = {
     let stepsHTML = '';
     if (w.type === 'interval' && w.detail) {
       stepsHTML = buildSteps([
-        { label: 'ウォームアップ', meta: 'ゆっくりジョグ', pace: paces.recovery, color: 'var(--color-easy-run)' },
+        { label: 'ウォームアップ', meta: 'ゆっくりジョグ', pace: paces.jog, color: 'var(--color-easy-run)' },
         { label: w.detail.reps + ' ダッシュ', meta: '間に' + w.detail.rest + '休息', pace: paces.interval, color: 'var(--color-interval)' },
-        { label: 'クールダウン', meta: 'ゆっくりジョグ', pace: paces.recovery, color: 'var(--color-easy-run)' }
+        { label: 'クールダウン', meta: 'ゆっくりジョグ', pace: paces.jog, color: 'var(--color-easy-run)' }
       ]);
     } else if (w.type === 'tempo') {
       const tempoKm = roundKm(Math.max(w.dist - 4, 2));
       stepsHTML = buildSteps([
-        { label: 'ウォームアップ', meta: '2km ジョグ', pace: paces.easy, color: 'var(--color-easy-run)' },
+        { label: 'ウォームアップ', meta: '2km ジョグ', pace: paces.jog, color: 'var(--color-easy-run)' },
         { label: 'テンポ走', meta: tempoKm + 'km', pace: paces.tempo, color: 'var(--color-tempo-run)' },
-        { label: 'クールダウン', meta: '2km ジョグ', pace: paces.easy, color: 'var(--color-easy-run)' }
+        { label: 'クールダウン', meta: '2km ジョグ', pace: paces.jog, color: 'var(--color-easy-run)' }
       ]);
     } else if (w.type === 'long') {
       const third = roundKm(w.dist / 3);
       stepsHTML = buildSteps([
-        { label: 'イージースタート', meta: third + 'km', pace: paces.easy, color: 'var(--color-easy-run)' },
+        { label: 'イージースタート', meta: third + 'km', pace: paces.jog, color: 'var(--color-easy-run)' },
         { label: 'ステディペース', meta: third + 'km', pace: paces.long, color: 'var(--color-long-run)' },
-        { label: 'イージーフィニッシュ', meta: third + 'km', pace: paces.easy, color: 'var(--color-easy-run)' }
+        { label: 'イージーフィニッシュ', meta: third + 'km', pace: paces.jog, color: 'var(--color-easy-run)' }
       ]);
-    } else if (w.type === 'easy' || w.type === 'recovery') {
+    } else if (w.type === 'jog') {
       stepsHTML = buildSteps([
         { label: w.name, meta: Math.round(w.dist) + 'km 一定ペース', pace: w.pace, color: TYPE_COLORS[w.type] }
       ]);
@@ -576,11 +586,13 @@ const App = {
         const distLabel = day.dist > 0 ? formatDist(day.dist, day.type) + 'km' : '\u2014';
         const d = fromISO(day.date);
         const dateLabel = (d.getMonth() + 1) + '/' + d.getDate();
+        const nameDisplay = TYPE_JA[day.type] || day.name;
+        const commentBadge = day.comment ? '<span class="plan-comment-badge" title="' + escapeHtml(day.comment) + '">\u2026</span>' : '';
         html += '<li class="plan-item" onclick="App.openEditWorkout(\'' + day.date + '\')">' +
-          '<span class="plan-dot" style="background:' + TYPE_COLORS[day.type] + '"></span>' +
+          '<span class="plan-dot" style="background:' + (TYPE_COLORS[day.type] || 'var(--color-fill-primary)') + '"></span>' +
           '<span class="plan-day">' + day.dayJa + '</span>' +
           '<span class="plan-date">' + dateLabel + '</span>' +
-          '<span class="plan-name">' + escapeHtml(day.name) + '</span>' +
+          '<span class="plan-name">' + escapeHtml(nameDisplay) + commentBadge + '</span>' +
           '<span class="plan-dist">' + distLabel + '</span>' +
           '<span class="plan-check' + (done ? ' done' : '') + '" onclick="event.stopPropagation();App.toggleComplete(\'' + day.date + '\')"></span></li>';
       }
@@ -756,12 +768,12 @@ const App = {
       '<div class="edit-sheet">' +
         '<div class="edit-sheet-handle"></div>' +
         '<div class="edit-sheet-title">' + targetDay.dayJa + ' ' + (dd.getMonth() + 1) + '/' + dd.getDate() + ' のメニュー</div>' +
-        '<div class="edit-field"><label class="form-label">種類</label>' +
+        '<div class="edit-field"><label class="form-label">メニュー</label>' +
           '<select id="edit-type" class="form-input edit-select">' + typeOptions + '</select></div>' +
         '<div class="edit-field"><label class="form-label">距離 (km)</label>' +
           '<input type="number" id="edit-dist" class="form-input" value="' + distVal + '" min="0" step="' + stepVal + '"></div>' +
-        '<div class="edit-field"><label class="form-label">メモ</label>' +
-          '<input type="text" id="edit-name" class="form-input" value="' + escapeHtml(targetDay.name) + '"></div>' +
+        '<div class="edit-field"><label class="form-label">コメント</label>' +
+          '<input type="text" id="edit-comment" class="form-input" value="' + escapeHtml(targetDay.comment || '') + '" placeholder="コメントを入力"></div>' +
         '<div class="edit-actions">' +
           '<button class="edit-cancel-btn" onclick="App.closeEditWorkout()">キャンセル</button>' +
           '<button class="cta-btn edit-save-btn" onclick="App.saveEditWorkout(\'' + dateStr + '\')">保存</button>' +
@@ -778,14 +790,15 @@ const App = {
     const newType = document.getElementById('edit-type').value;
     const rawDist = parseFloat(document.getElementById('edit-dist').value) || 0;
     const newDist = newType === 'interval' ? Math.round(rawDist * 10) / 10 : Math.round(rawDist);
-    const newName = document.getElementById('edit-name').value.trim();
+    const newComment = document.getElementById('edit-comment').value.trim();
 
     for (const week of this.state.plan) {
       for (const day of week.days) {
         if (day.date === dateStr) {
           day.type = newType;
           day.dist = newDist;
-          day.name = newName || TYPE_JA[newType] || newType;
+          day.name = TYPE_JA[newType] || newType;
+          day.comment = newComment;
           if (this.state.paces && this.state.paces[newType]) {
             day.pace = this.state.paces[newType];
           }
