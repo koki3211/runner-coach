@@ -1,0 +1,12 @@
+{
+  "name": "Runner Coach",
+  "short_name": "Runner",
+  "description": "ランニングトレーニングプランナー",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#007AFF",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

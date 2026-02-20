@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#007AFF">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon.svg">
   <title>Runner Coach</title>
   <link rel="stylesheet" href="design-tokens/variables.css">
   <style>
-    /* ==========================================================
-       RESET & BASE
-       ========================================================== */
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-
     html {
       font-family: var(--font-family-body);
       font-size: var(--font-size-body);
@@ -22,26 +22,17 @@
       -webkit-tap-highlight-color: transparent;
       overscroll-behavior: none;
     }
-
     body {
       padding-top: var(--safe-area-top);
       padding-bottom: calc(var(--tab-bar-height) + var(--safe-area-bottom));
       min-height: 100dvh;
     }
-
-    /* ==========================================================
-       TAB SCREENS — show / hide
-       ========================================================== */
     .screen { display: none; }
     .screen.active { display: block; }
 
-    /* ==========================================================
-       NAV BAR
-       ========================================================== */
+    /* Nav Bar */
     .nav-bar {
-      position: sticky;
-      top: 0;
-      z-index: 100;
+      position: sticky; top: 0; z-index: 100;
       padding: var(--space-md) var(--space-base);
       background: var(--color-bg-primary);
       border-bottom: 0.5px solid var(--color-separator);
@@ -58,21 +49,13 @@
       margin-top: var(--space-2xs);
     }
 
-    /* ==========================================================
-       SECTION
-       ========================================================== */
-    .section {
-      padding: var(--space-lg) var(--space-base);
-    }
+    /* Section & Card */
+    .section { padding: var(--space-lg) var(--space-base); }
     .section-header {
       font-size: var(--font-size-title3);
       font-weight: var(--font-weight-semibold);
       margin-bottom: var(--space-md);
     }
-
-    /* ==========================================================
-       CARD
-       ========================================================== */
     .card {
       background: var(--color-bg-primary);
       border-radius: var(--radius-lg);
@@ -80,1200 +63,492 @@
       box-shadow: var(--shadow-card);
       margin-bottom: var(--space-md);
     }
-    .card + .card { margin-top: 0; }
 
-    /* ==========================================================
-       TODAY HERO CARD
-       ========================================================== */
+    /* Today Hero */
     .today-hero {
-      background: linear-gradient(135deg, var(--color-brand-primary), var(--color-brand-secondary));
-      color: #fff;
-      border-radius: var(--radius-xl);
-      padding: var(--space-xl);
-      margin: var(--space-base);
-      position: relative;
-      overflow: hidden;
+      color: #fff; border-radius: var(--radius-xl);
+      padding: var(--space-xl); margin: var(--space-base);
+      position: relative; overflow: hidden;
     }
+    .today-hero.type-interval { background: linear-gradient(135deg, #FF3B30, #C93400); }
+    .today-hero.type-easy { background: linear-gradient(135deg, #34C759, #248A3D); }
+    .today-hero.type-tempo { background: linear-gradient(135deg, #FF9500, #C93400); }
+    .today-hero.type-long { background: linear-gradient(135deg, #007AFF, #5856D6); }
+    .today-hero.type-rest { background: linear-gradient(135deg, #8E8E93, #636366); }
+    .today-hero.type-cross { background: linear-gradient(135deg, #5AC8FA, #007AFF); }
+    .today-hero.type-recovery { background: linear-gradient(135deg, #30D158, #248A3D); }
     .today-hero::after {
-      content: "";
-      position: absolute;
-      top: -30%;
-      right: -20%;
-      width: 200px;
-      height: 200px;
-      border-radius: 50%;
+      content: ""; position: absolute; top: -30%; right: -20%;
+      width: 200px; height: 200px; border-radius: 50%;
       background: rgba(255,255,255,0.08);
     }
     .today-hero .workout-type {
-      font-size: var(--font-size-caption1);
-      font-weight: var(--font-weight-semibold);
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      opacity: 0.85;
+      font-size: var(--font-size-caption1); font-weight: var(--font-weight-semibold);
+      text-transform: uppercase; letter-spacing: 1px; opacity: 0.85;
     }
     .today-hero .workout-name {
       font-family: var(--font-family-display);
-      font-size: var(--font-size-title1);
-      font-weight: var(--font-weight-bold);
-      margin-top: var(--space-xs);
-      line-height: var(--line-height-tight);
+      font-size: var(--font-size-title1); font-weight: var(--font-weight-bold);
+      margin-top: var(--space-xs); line-height: var(--line-height-tight);
     }
     .today-hero .workout-detail {
-      font-size: var(--font-size-subhead);
-      opacity: 0.8;
-      margin-top: var(--space-sm);
+      font-size: var(--font-size-subhead); opacity: 0.8; margin-top: var(--space-sm);
     }
     .today-hero .start-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: var(--space-sm);
-      margin-top: var(--space-lg);
-      padding: var(--space-md) var(--space-xl);
-      background: rgba(255,255,255, 0.22);
-      backdrop-filter: blur(8px);
+      display: inline-flex; align-items: center; gap: var(--space-sm);
+      margin-top: var(--space-lg); padding: var(--space-md) var(--space-xl);
+      background: rgba(255,255,255,0.22); backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
-      border: 1px solid rgba(255,255,255,0.3);
-      border-radius: var(--radius-full);
-      color: #fff;
-      font-family: var(--font-family-body);
-      font-size: var(--font-size-headline);
-      font-weight: var(--font-weight-semibold);
-      cursor: pointer;
-      transition: transform var(--duration-fast) var(--easing-spring);
+      border: 1px solid rgba(255,255,255,0.3); border-radius: var(--radius-full);
+      color: #fff; font-family: var(--font-family-body);
+      font-size: var(--font-size-headline); font-weight: var(--font-weight-semibold);
+      cursor: pointer; transition: transform var(--duration-fast) var(--easing-spring);
     }
-    .today-hero .start-btn:active {
-      transform: scale(0.95);
+    .today-hero .start-btn:active { transform: scale(0.95); }
+    .today-hero .start-btn.completed-btn {
+      background: rgba(255,255,255,0.35); pointer-events: none;
     }
 
-    /* ==========================================================
-       WORKOUT STEPS (within today detail)
-       ========================================================== */
+    /* Workout Steps */
     .workout-steps { list-style: none; }
     .workout-steps li {
-      display: flex;
-      align-items: center;
-      gap: var(--space-md);
-      padding: var(--space-md) 0;
-      border-bottom: 0.5px solid var(--color-separator);
+      display: flex; align-items: center; gap: var(--space-md);
+      padding: var(--space-md) 0; border-bottom: 0.5px solid var(--color-separator);
     }
     .workout-steps li:last-child { border-bottom: none; }
     .step-index {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: var(--font-size-caption1);
-      font-weight: var(--font-weight-semibold);
-      color: #fff;
-      flex-shrink: 0;
+      width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: var(--font-size-caption1); font-weight: var(--font-weight-semibold);
+      color: #fff; flex-shrink: 0;
     }
     .step-info { flex: 1; }
-    .step-info .step-label {
-      font-size: var(--font-size-subhead);
-      font-weight: var(--font-weight-medium);
-    }
-    .step-info .step-meta {
-      font-size: var(--font-size-caption1);
-      color: var(--color-label-secondary);
-      margin-top: 2px;
-    }
-    .step-pace {
-      font-family: var(--font-family-data);
-      font-size: var(--font-size-subhead);
-      color: var(--color-label-secondary);
-    }
+    .step-info .step-label { font-size: var(--font-size-subhead); font-weight: var(--font-weight-medium); }
+    .step-info .step-meta { font-size: var(--font-size-caption1); color: var(--color-label-secondary); margin-top: 2px; }
+    .step-pace { font-family: var(--font-family-data); font-size: var(--font-size-subhead); color: var(--color-label-secondary); }
 
-    /* ==========================================================
-       WEEK PLAN (horizontal scroll)
-       ========================================================== */
+    /* Week Scroll */
     .week-scroll {
-      display: flex;
-      gap: var(--space-sm);
-      overflow-x: auto;
-      scroll-snap-type: x mandatory;
-      -webkit-overflow-scrolling: touch;
-      padding: 0 var(--space-base) var(--space-sm);
-      scrollbar-width: none;
+      display: flex; gap: var(--space-sm); overflow-x: auto;
+      scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+      padding: 0 var(--space-base) var(--space-sm); scrollbar-width: none;
     }
     .week-scroll::-webkit-scrollbar { display: none; }
-
     .day-card {
-      flex: 0 0 72px;
-      scroll-snap-align: start;
-      text-align: center;
+      flex: 0 0 72px; scroll-snap-align: start; text-align: center;
       padding: var(--space-md) var(--space-sm);
-      background: var(--color-bg-primary);
-      border-radius: var(--radius-md);
-      box-shadow: var(--shadow-sm);
-      cursor: pointer;
+      background: var(--color-bg-primary); border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm); cursor: pointer;
       transition: transform var(--duration-fast) var(--easing-spring);
       position: relative;
     }
     .day-card:active { transform: scale(0.95); }
-    .day-card.today {
-      border: 2px solid var(--color-brand-primary);
-    }
+    .day-card.today { border: 2px solid var(--color-brand-primary); }
     .day-card.completed::after {
-      content: "";
-      position: absolute;
-      top: 6px;
-      right: 6px;
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--color-success);
+      content: ""; position: absolute; top: 6px; right: 6px;
+      width: 8px; height: 8px; border-radius: 50%; background: var(--color-success);
     }
     .day-card .day-label {
-      font-size: var(--font-size-caption2);
-      color: var(--color-label-secondary);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+      font-size: var(--font-size-caption2); color: var(--color-label-secondary);
+      text-transform: uppercase; letter-spacing: 0.5px;
     }
-    .day-card .day-date {
-      font-size: var(--font-size-title3);
-      font-weight: var(--font-weight-semibold);
-      margin: var(--space-xs) 0;
-    }
+    .day-card .day-date { font-size: var(--font-size-title3); font-weight: var(--font-weight-semibold); margin: var(--space-xs) 0; }
     .day-card .day-type {
-      font-size: 9px;
-      font-weight: var(--font-weight-semibold);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      padding: 2px 6px;
-      border-radius: var(--radius-full);
-      color: #fff;
-      display: inline-block;
+      font-size: 9px; font-weight: var(--font-weight-semibold);
+      text-transform: uppercase; letter-spacing: 0.5px;
+      padding: 2px 6px; border-radius: var(--radius-full);
+      color: #fff; display: inline-block;
     }
 
-    /* ==========================================================
-       PROGRESS RING
-       ========================================================== */
-    .progress-section {
-      display: flex;
-      align-items: center;
-      gap: var(--space-lg);
-      padding: var(--space-base);
-    }
-    .progress-ring-wrap {
-      position: relative;
-      width: 80px;
-      height: 80px;
-      flex-shrink: 0;
-    }
-    .progress-ring {
-      transform: rotate(-90deg);
-    }
-    .progress-ring-bg {
-      fill: none;
-      stroke: var(--color-fill-tertiary);
-      stroke-width: 6;
-    }
+    /* Progress Ring */
+    .progress-section { display: flex; align-items: center; gap: var(--space-lg); padding: var(--space-base); }
+    .progress-ring-wrap { position: relative; width: 80px; height: 80px; flex-shrink: 0; }
+    .progress-ring { transform: rotate(-90deg); }
+    .progress-ring-bg { fill: none; stroke: var(--color-fill-tertiary); stroke-width: 6; }
     .progress-ring-fill {
-      fill: none;
-      stroke: var(--color-brand-primary);
-      stroke-width: 6;
-      stroke-linecap: round;
-      transition: stroke-dashoffset var(--duration-slow) var(--easing-default);
+      fill: none; stroke: var(--color-brand-primary); stroke-width: 6;
+      stroke-linecap: round; transition: stroke-dashoffset var(--duration-slow) var(--easing-default);
     }
     .progress-ring-text {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-family: var(--font-family-data);
-      font-size: var(--font-size-title3);
-      font-weight: var(--font-weight-bold);
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-family-data); font-size: var(--font-size-title3); font-weight: var(--font-weight-bold);
     }
-    .progress-info .progress-label {
-      font-size: var(--font-size-headline);
-      font-weight: var(--font-weight-semibold);
+    .progress-info .progress-label { font-size: var(--font-size-headline); font-weight: var(--font-weight-semibold); }
+    .progress-info .progress-detail { font-size: var(--font-size-footnote); color: var(--color-label-secondary); margin-top: var(--space-2xs); }
+
+    /* Bar Chart */
+    .bar-chart { display: flex; align-items: flex-end; gap: var(--space-sm); height: 100px; padding: var(--space-base) 0; }
+    .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: var(--space-xs); }
+    .bar { width: 100%; max-width: 32px; border-radius: var(--radius-sm) var(--radius-sm) 0 0; transition: height var(--duration-normal) var(--easing-spring); }
+    .bar-label { font-size: var(--font-size-caption2); color: var(--color-label-secondary); }
+    .bar-value { font-family: var(--font-family-data); font-size: var(--font-size-caption2); color: var(--color-label-secondary); }
+
+    /* Pace Grid */
+    .pace-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-md);
     }
-    .progress-info .progress-detail {
-      font-size: var(--font-size-footnote);
-      color: var(--color-label-secondary);
-      margin-top: var(--space-2xs);
+    .pace-item { text-align: center; }
+    .pace-item .pace-label {
+      font-size: var(--font-size-caption2); color: var(--color-label-secondary);
+      text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: var(--space-2xs);
+    }
+    .pace-item .pace-value {
+      font-family: var(--font-family-data); font-size: var(--font-size-headline);
+      font-weight: var(--font-weight-semibold); color: var(--color-brand-primary);
     }
 
-    /* ==========================================================
-       WEEKLY DISTANCE BAR CHART
-       ========================================================== */
-    .bar-chart {
-      display: flex;
-      align-items: flex-end;
-      gap: var(--space-sm);
-      height: 100px;
-      padding: var(--space-base) 0;
+    /* Monthly Chart */
+    .monthly-chart {
+      display: flex; align-items: flex-end; gap: var(--space-md);
+      height: 160px; padding: var(--space-base) 0;
     }
-    .bar-col {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: var(--space-xs);
+    .monthly-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: var(--space-xs); }
+    .monthly-values { text-align: center; line-height: 1.2; }
+    .monthly-val-done {
+      font-family: var(--font-family-data); font-size: var(--font-size-caption1);
+      font-weight: var(--font-weight-bold); color: var(--color-brand-primary);
     }
-    .bar {
-      width: 100%;
-      max-width: 32px;
-      border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    .monthly-val-plan {
+      font-family: var(--font-family-data); font-size: var(--font-size-caption2);
+      color: var(--color-label-tertiary);
+    }
+    .monthly-bar-wrap {
+      width: 100%; max-width: 40px; position: relative;
+      border-radius: var(--radius-sm) var(--radius-sm) 0 0; overflow: hidden;
+    }
+    .monthly-bar-planned {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: var(--color-fill-tertiary); border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    }
+    .monthly-bar-done {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: var(--color-brand-primary); border-radius: var(--radius-sm) var(--radius-sm) 0 0;
       transition: height var(--duration-normal) var(--easing-spring);
     }
-    .bar-label {
-      font-size: var(--font-size-caption2);
-      color: var(--color-label-secondary);
+    .monthly-label { font-size: var(--font-size-caption2); color: var(--color-label-secondary); }
+    .monthly-legend {
+      display: flex; justify-content: center; gap: var(--space-lg);
+      margin-top: var(--space-sm); font-size: var(--font-size-caption1); color: var(--color-label-secondary);
     }
-    .bar-value {
-      font-family: var(--font-family-data);
-      font-size: var(--font-size-caption2);
-      color: var(--color-label-secondary);
+    .legend-item { display: flex; align-items: center; gap: var(--space-xs); }
+    .legend-dot {
+      width: 10px; height: 10px; border-radius: 2px;
     }
+    .legend-dot.done { background: var(--color-brand-primary); }
+    .legend-dot.planned { background: var(--color-fill-tertiary); }
 
-    /* ==========================================================
-       SCREEN: PLAN — Calendar grid
-       ========================================================== */
-    .plan-week {
-      margin-bottom: var(--space-lg);
-    }
+    /* Plan Screen */
+    .plan-week { margin-bottom: var(--space-lg); }
     .plan-week-header {
-      font-size: var(--font-size-footnote);
-      font-weight: var(--font-weight-semibold);
-      color: var(--color-label-secondary);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      padding: 0 var(--space-base) var(--space-sm);
+      font-size: var(--font-size-footnote); font-weight: var(--font-weight-semibold);
+      color: var(--color-label-secondary); text-transform: uppercase;
+      letter-spacing: 0.5px; padding: 0 var(--space-base) var(--space-sm);
     }
     .plan-list { list-style: none; }
     .plan-item {
-      display: flex;
-      align-items: center;
-      gap: var(--space-md);
+      display: flex; align-items: center; gap: var(--space-md);
       padding: var(--space-md) var(--space-base);
       background: var(--color-bg-primary);
       border-bottom: 0.5px solid var(--color-separator);
-      cursor: pointer;
-      transition: background var(--duration-fast);
+      cursor: pointer; transition: background var(--duration-fast);
     }
     .plan-item:first-child { border-radius: var(--radius-md) var(--radius-md) 0 0; }
-    .plan-item:last-child {
-      border-radius: 0 0 var(--radius-md) var(--radius-md);
-      border-bottom: none;
-    }
+    .plan-item:last-child { border-radius: 0 0 var(--radius-md) var(--radius-md); border-bottom: none; }
     .plan-item:active { background: var(--color-fill-tertiary); }
-    .plan-item .plan-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-    .plan-item .plan-day {
-      width: 32px;
-      font-size: var(--font-size-footnote);
-      color: var(--color-label-secondary);
-      flex-shrink: 0;
-    }
-    .plan-item .plan-name {
-      flex: 1;
-      font-size: var(--font-size-subhead);
-      font-weight: var(--font-weight-medium);
-    }
-    .plan-item .plan-dist {
-      font-family: var(--font-family-data);
-      font-size: var(--font-size-footnote);
-      color: var(--color-label-secondary);
-    }
+    .plan-item .plan-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .plan-item .plan-day { width: 32px; font-size: var(--font-size-footnote); color: var(--color-label-secondary); flex-shrink: 0; }
+    .plan-item .plan-name { flex: 1; font-size: var(--font-size-subhead); font-weight: var(--font-weight-medium); }
+    .plan-item .plan-dist { font-family: var(--font-family-data); font-size: var(--font-size-footnote); color: var(--color-label-secondary); }
     .plan-item .plan-check {
-      width: 22px;
-      height: 22px;
-      border-radius: 50%;
+      width: 22px; height: 22px; border-radius: 50%;
       border: 2px solid var(--color-fill-primary);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      transition: all var(--duration-fast) var(--easing-spring);
-      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: all var(--duration-fast) var(--easing-spring); cursor: pointer;
     }
-    .plan-item .plan-check.done {
-      border-color: var(--color-success);
-      background: var(--color-success);
-    }
-    .plan-item .plan-check.done::after {
-      content: "✓";
-      color: #fff;
-      font-size: 12px;
-      font-weight: var(--font-weight-bold);
-    }
+    .plan-item .plan-check.done { border-color: var(--color-success); background: var(--color-success); }
+    .plan-item .plan-check.done::after { content: "\2713"; color: #fff; font-size: 12px; font-weight: var(--font-weight-bold); }
 
-    /* ==========================================================
-       SCREEN: FRIENDS
-       ========================================================== */
+    /* Friends */
     .friend-card {
-      display: flex;
-      align-items: center;
-      gap: var(--space-md);
-      padding: var(--space-base);
-      background: var(--color-bg-primary);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-card);
+      display: flex; align-items: center; gap: var(--space-md);
+      padding: var(--space-base); background: var(--color-bg-primary);
+      border-radius: var(--radius-lg); box-shadow: var(--shadow-card);
       margin: 0 var(--space-base) var(--space-md);
     }
     .friend-avatar {
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 22px;
-      flex-shrink: 0;
-      color: #fff;
-      font-weight: var(--font-weight-bold);
+      width: 48px; height: 48px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; flex-shrink: 0; color: #fff; font-weight: var(--font-weight-bold);
     }
     .friend-info { flex: 1; min-width: 0; }
-    .friend-name {
-      font-size: var(--font-size-headline);
-      font-weight: var(--font-weight-semibold);
-    }
-    .friend-goal {
-      font-size: var(--font-size-caption1);
-      color: var(--color-label-secondary);
-      margin-top: 2px;
-    }
-    .friend-today {
-      font-size: var(--font-size-footnote);
-      color: var(--color-label-secondary);
-      margin-top: var(--space-xs);
-      display: flex;
-      align-items: center;
-      gap: var(--space-xs);
-    }
+    .friend-name { font-size: var(--font-size-headline); font-weight: var(--font-weight-semibold); }
+    .friend-goal { font-size: var(--font-size-caption1); color: var(--color-label-secondary); margin-top: 2px; }
+    .friend-today { font-size: var(--font-size-footnote); color: var(--color-label-secondary); margin-top: var(--space-xs); display: flex; align-items: center; gap: var(--space-xs); }
     .friend-today .done-badge {
-      font-size: var(--font-size-caption2);
-      font-weight: var(--font-weight-semibold);
-      color: var(--color-success);
-      background: rgba(52, 199, 89, 0.12);
-      padding: 2px 8px;
-      border-radius: var(--radius-full);
+      font-size: var(--font-size-caption2); font-weight: var(--font-weight-semibold);
+      color: var(--color-success); background: rgba(52,199,89,0.12);
+      padding: 2px 8px; border-radius: var(--radius-full);
     }
-    .friend-streak {
-      text-align: center;
-      flex-shrink: 0;
-    }
-    .friend-streak .streak-num {
-      font-family: var(--font-family-data);
-      font-size: var(--font-size-title2);
-      font-weight: var(--font-weight-bold);
-      color: var(--color-brand-accent);
-    }
-    .friend-streak .streak-label {
-      font-size: var(--font-size-caption2);
-      color: var(--color-label-secondary);
-    }
+    .friend-streak { text-align: center; flex-shrink: 0; }
+    .friend-streak .streak-num { font-family: var(--font-family-data); font-size: var(--font-size-title2); font-weight: var(--font-weight-bold); color: var(--color-brand-accent); }
+    .friend-streak .streak-label { font-size: var(--font-size-caption2); color: var(--color-label-secondary); }
+    .friend-week { display: flex; gap: 3px; margin-top: var(--space-sm); }
+    .friend-week-dot { width: 8px; height: 8px; border-radius: 2px; background: var(--color-fill-tertiary); }
+    .friend-week-dot.done { background: var(--color-success); }
 
-    /* Weekly mini-bar for friends */
-    .friend-week {
-      display: flex;
-      gap: 3px;
-      margin-top: var(--space-sm);
+    /* Goal Screen — Custom Form */
+    .form-group { margin: 0 var(--space-base) var(--space-lg); }
+    .form-label {
+      display: block; font-size: var(--font-size-subhead); font-weight: var(--font-weight-semibold);
+      color: var(--color-label-secondary); margin-bottom: var(--space-sm);
     }
-    .friend-week-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 2px;
-      background: var(--color-fill-tertiary);
+    .form-input {
+      width: 100%; padding: var(--space-md); font-size: var(--font-size-body);
+      font-family: var(--font-family-body); color: var(--color-label-primary);
+      background: var(--color-bg-primary); border: 1.5px solid var(--color-separator-opaque);
+      border-radius: var(--radius-md); outline: none;
+      transition: border-color var(--duration-fast);
     }
-    .friend-week-dot.done {
-      background: var(--color-success);
-    }
-    .friend-week-dot.planned {
-      background: var(--color-fill-primary);
-    }
-
-    /* ==========================================================
-       COMPLETION OVERLAY
-       ========================================================== */
-    .completion-overlay {
-      position: fixed;
-      inset: 0;
-      z-index: 1000;
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      background: var(--color-bg-primary);
-      text-align: center;
-      padding: var(--space-2xl);
-    }
-    .completion-overlay.show {
-      display: flex;
-      animation: fadeIn var(--duration-normal) var(--easing-default);
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-    .completion-icon {
-      width: 120px;
-      height: 120px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--color-success), #2fb851);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 56px;
-      color: #fff;
-      margin-bottom: var(--space-xl);
-      animation: popIn 0.5s var(--easing-spring) 0.2s both;
-    }
-    @keyframes popIn {
-      from { transform: scale(0); opacity: 0; }
-      to { transform: scale(1); opacity: 1; }
-    }
-    .completion-title {
-      font-family: var(--font-family-display);
-      font-size: var(--font-size-title1);
-      font-weight: var(--font-weight-bold);
-      animation: slideUp var(--duration-normal) var(--easing-default) 0.4s both;
-    }
-    .completion-subtitle {
-      font-size: var(--font-size-callout);
+    .form-input:focus { border-color: var(--color-brand-primary); }
+    .form-input::placeholder { color: var(--color-label-tertiary); }
+    .form-toggle-group { display: flex; gap: var(--space-sm); }
+    .form-toggle {
+      flex: 1; padding: var(--space-md); text-align: center;
+      font-size: var(--font-size-subhead); font-weight: var(--font-weight-semibold);
+      font-family: var(--font-family-body);
+      background: var(--color-bg-primary); border: 1.5px solid var(--color-separator-opaque);
+      border-radius: var(--radius-md); cursor: pointer;
       color: var(--color-label-secondary);
-      margin-top: var(--space-sm);
-      animation: slideUp var(--duration-normal) var(--easing-default) 0.5s both;
+      transition: all var(--duration-fast);
     }
-    @keyframes slideUp {
-      from { transform: translateY(20px); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
-    }
-    .completion-stats {
-      display: flex;
-      gap: var(--space-2xl);
-      margin-top: var(--space-2xl);
-      animation: slideUp var(--duration-normal) var(--easing-default) 0.6s both;
-    }
-    .completion-stat {
-      text-align: center;
-    }
-    .completion-stat .stat-value {
-      font-family: var(--font-family-data);
-      font-size: var(--font-size-title1);
-      font-weight: var(--font-weight-bold);
+    .form-toggle.active {
+      border-color: var(--color-brand-primary); background: rgba(0,122,255,0.08);
       color: var(--color-brand-primary);
     }
-    .completion-stat .stat-label {
-      font-size: var(--font-size-caption1);
-      color: var(--color-label-secondary);
-      margin-top: var(--space-2xs);
+    .form-hint {
+      font-size: var(--font-size-caption1); color: var(--color-brand-primary);
+      margin-top: var(--space-sm); min-height: 1.6em; line-height: 1.4;
     }
 
-    .confetti-container {
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      z-index: 1001;
-      overflow: hidden;
+    .cta-btn {
+      display: block; width: calc(100% - var(--space-base) * 2);
+      margin: var(--space-lg) auto; padding: var(--space-base);
+      background: var(--color-brand-primary); color: #fff; border: none;
+      border-radius: var(--radius-md); font-family: var(--font-family-body);
+      font-size: var(--font-size-headline); font-weight: var(--font-weight-semibold);
+      cursor: pointer; transition: transform var(--duration-fast) var(--easing-spring);
     }
+    .cta-btn:active { transform: scale(0.97); }
+    .cta-btn:disabled { opacity: 0.4; cursor: default; }
+
+    /* Auth UI */
+    .auth-area { padding: var(--space-base); }
+    .auth-logged-in {
+      display: flex; align-items: center; gap: var(--space-md);
+      padding: var(--space-base); background: var(--color-bg-primary);
+      border-radius: var(--radius-lg); box-shadow: var(--shadow-card);
+    }
+    .auth-avatar { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; }
+    .auth-avatar-placeholder {
+      width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+      background: var(--color-brand-primary); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: var(--font-size-headline); font-weight: var(--font-weight-bold);
+    }
+    .auth-info { flex: 1; }
+    .auth-name { font-size: var(--font-size-subhead); font-weight: var(--font-weight-semibold); }
+    .auth-link {
+      font-size: var(--font-size-caption1); color: var(--color-brand-primary);
+      background: none; border: none; cursor: pointer; font-family: var(--font-family-body);
+      padding: 0; margin-top: 2px;
+    }
+    .auth-offline {
+      font-size: var(--font-size-footnote); color: var(--color-label-tertiary);
+      text-align: center; padding: var(--space-md);
+    }
+    .login-btn {
+      display: inline-flex; align-items: center; gap: var(--space-sm);
+      padding: var(--space-md) var(--space-xl);
+      background: var(--color-bg-primary); border: 1.5px solid var(--color-separator-opaque);
+      border-radius: var(--radius-full); cursor: pointer;
+      font-family: var(--font-family-body); font-size: var(--font-size-subhead);
+      font-weight: var(--font-weight-semibold); color: var(--color-label-primary);
+      transition: all var(--duration-fast);
+    }
+    .login-btn:active { transform: scale(0.97); background: var(--color-fill-tertiary); }
+
+    /* Completion Overlay */
+    .completion-overlay {
+      position: fixed; inset: 0; z-index: 1000; display: none;
+      flex-direction: column; align-items: center; justify-content: center;
+      background: var(--color-bg-primary); text-align: center; padding: var(--space-2xl);
+    }
+    .completion-overlay.show { display: flex; animation: fadeIn var(--duration-normal) var(--easing-default); }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .completion-icon {
+      width: 120px; height: 120px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--color-success), #2fb851);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 56px; color: #fff; margin-bottom: var(--space-xl);
+      animation: popIn 0.5s var(--easing-spring) 0.2s both;
+    }
+    @keyframes popIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .completion-title {
+      font-family: var(--font-family-display); font-size: var(--font-size-title1);
+      font-weight: var(--font-weight-bold); animation: slideUp var(--duration-normal) var(--easing-default) 0.4s both;
+    }
+    .completion-subtitle {
+      font-size: var(--font-size-callout); color: var(--color-label-secondary);
+      margin-top: var(--space-sm); animation: slideUp var(--duration-normal) var(--easing-default) 0.5s both;
+    }
+    @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .completion-stats {
+      display: flex; gap: var(--space-2xl); margin-top: var(--space-2xl);
+      animation: slideUp var(--duration-normal) var(--easing-default) 0.6s both;
+    }
+    .completion-stat { text-align: center; }
+    .completion-stat .stat-value { font-family: var(--font-family-data); font-size: var(--font-size-title1); font-weight: var(--font-weight-bold); color: var(--color-brand-primary); }
+    .completion-stat .stat-label { font-size: var(--font-size-caption1); color: var(--color-label-secondary); margin-top: var(--space-2xs); }
+    .confetti-container { position: fixed; inset: 0; pointer-events: none; z-index: 1001; overflow: hidden; }
     .confetti {
-      position: absolute;
-      width: 8px;
-      height: 8px;
-      border-radius: 2px;
-      top: -10px;
-      animation: confettiFall linear forwards;
+      position: absolute; width: 8px; height: 8px; border-radius: 2px;
+      top: -10px; animation: confettiFall linear forwards;
     }
-    @keyframes confettiFall {
-      0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-      100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
-    }
-
+    @keyframes confettiFall { 0% { transform: translateY(0) rotate(0deg); opacity: 1; } 100% { transform: translateY(110vh) rotate(720deg); opacity: 0; } }
     .completion-close-btn {
-      margin-top: var(--space-3xl);
-      padding: var(--space-md) var(--space-3xl);
-      background: var(--color-brand-primary);
-      color: #fff;
-      border: none;
-      border-radius: var(--radius-full);
-      font-family: var(--font-family-body);
-      font-size: var(--font-size-headline);
-      font-weight: var(--font-weight-semibold);
-      cursor: pointer;
-      transition: transform var(--duration-fast) var(--easing-spring);
+      margin-top: var(--space-3xl); padding: var(--space-md) var(--space-3xl);
+      background: var(--color-brand-primary); color: #fff; border: none;
+      border-radius: var(--radius-full); font-family: var(--font-family-body);
+      font-size: var(--font-size-headline); font-weight: var(--font-weight-semibold);
+      cursor: pointer; transition: transform var(--duration-fast) var(--easing-spring);
       animation: slideUp var(--duration-normal) var(--easing-default) 0.7s both;
     }
     .completion-close-btn:active { transform: scale(0.95); }
 
-    /* ==========================================================
-       TAB BAR
-       ========================================================== */
+    /* Tab Bar */
     .tab-bar {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      z-index: 200;
-      display: flex;
-      justify-content: space-around;
-      align-items: flex-start;
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
+      display: flex; justify-content: space-around; align-items: flex-start;
       padding: var(--space-sm) 0 calc(var(--space-sm) + var(--safe-area-bottom));
       background: var(--color-bg-elevated);
       border-top: 0.5px solid var(--color-separator);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
     }
     .tab-item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 2px;
-      padding: var(--space-xs) var(--space-md);
-      border: none;
-      background: none;
-      cursor: pointer;
-      color: var(--color-label-tertiary);
-      font-family: var(--font-family-body);
-      font-size: var(--font-size-caption2);
-      font-weight: var(--font-weight-medium);
-      transition: color var(--duration-fast);
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      padding: var(--space-xs) var(--space-md); border: none; background: none;
+      cursor: pointer; color: var(--color-label-tertiary);
+      font-family: var(--font-family-body); font-size: var(--font-size-caption2);
+      font-weight: var(--font-weight-medium); transition: color var(--duration-fast);
     }
     .tab-item.active { color: var(--color-brand-primary); }
-    .tab-item svg {
-      width: 24px;
-      height: 24px;
-      fill: currentColor;
-    }
+    .tab-item svg { width: 24px; height: 24px; fill: currentColor; }
 
-    /* ==========================================================
-       SCREEN: GOAL — Onboarding / Setup
-       ========================================================== */
-    .goal-option {
-      padding: var(--space-base);
-      background: var(--color-bg-primary);
-      border: 2px solid var(--color-separator-opaque);
-      border-radius: var(--radius-lg);
-      margin: 0 var(--space-base) var(--space-md);
-      cursor: pointer;
-      transition: all var(--duration-fast) var(--easing-default);
-    }
-    .goal-option:active { transform: scale(0.98); }
-    .goal-option.selected {
-      border-color: var(--color-brand-primary);
-      background: rgba(0, 122, 255, 0.05);
-    }
-    .goal-option .goal-emoji {
-      font-size: 28px;
-      margin-bottom: var(--space-sm);
-    }
-    .goal-option .goal-title {
-      font-size: var(--font-size-headline);
-      font-weight: var(--font-weight-semibold);
-    }
-    .goal-option .goal-desc {
-      font-size: var(--font-size-footnote);
+    /* Empty state */
+    .empty-state {
+      text-align: center; padding: var(--space-4xl) var(--space-2xl);
       color: var(--color-label-secondary);
-      margin-top: var(--space-2xs);
     }
-
-    .cta-btn {
-      display: block;
-      width: calc(100% - var(--space-base) * 2);
-      margin: var(--space-lg) auto;
-      padding: var(--space-base);
-      background: var(--color-brand-primary);
-      color: #fff;
-      border: none;
-      border-radius: var(--radius-md);
-      font-family: var(--font-family-body);
-      font-size: var(--font-size-headline);
-      font-weight: var(--font-weight-semibold);
+    .empty-state .empty-icon { font-size: 48px; margin-bottom: var(--space-base); }
+    .empty-state .empty-text { font-size: var(--font-size-callout); }
+    .empty-state .empty-btn {
+      margin-top: var(--space-lg); padding: var(--space-md) var(--space-xl);
+      background: var(--color-brand-primary); color: #fff; border: none;
+      border-radius: var(--radius-full); font-size: var(--font-size-subhead);
+      font-weight: var(--font-weight-semibold); font-family: var(--font-family-body);
       cursor: pointer;
-      transition: transform var(--duration-fast) var(--easing-spring);
-    }
-    .cta-btn:active { transform: scale(0.97); }
-    .cta-btn:disabled {
-      opacity: 0.4;
-      cursor: default;
     }
 
-    /* ==========================================================
-       UTILITY
-       ========================================================== */
+    /* Utility */
     .mx { margin-left: var(--space-base); margin-right: var(--space-base); }
     .text-secondary { color: var(--color-label-secondary); }
     .text-sm { font-size: var(--font-size-footnote); }
     .mt-sm { margin-top: var(--space-sm); }
     .mt-md { margin-top: var(--space-md); }
     .mt-lg { margin-top: var(--space-lg); }
-    .flex-between { display: flex; justify-content: space-between; align-items: center; }
   </style>
 </head>
 <body>
 
-<!-- ============================================================
-     SCREEN: TODAY (Home)
-     ============================================================ -->
+<!-- SCREEN: TODAY -->
 <div id="screen-today" class="screen active">
   <div class="nav-bar">
     <h1>Today</h1>
-    <div class="subtitle">Week 6 / 12 — 横浜マラソン 2026</div>
+    <div class="subtitle" id="today-subtitle">プランを作成してください</div>
   </div>
-
-  <!-- Hero: Today's Workout -->
-  <div class="today-hero">
-    <div class="workout-type">Interval</div>
-    <div class="workout-name">800m × 5 インターバル</div>
-    <div class="workout-detail">合計 8.2km ・ 推定 45分</div>
-    <button class="start-btn" onclick="showCompletion()">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-      トレーニング完了
-    </button>
-  </div>
-
-  <!-- Workout Details -->
-  <div class="section">
-    <div class="section-header">メニュー詳細</div>
-    <div class="card">
-      <ul class="workout-steps">
-        <li>
-          <span class="step-index" style="background:var(--color-easy-run)">1</span>
-          <div class="step-info">
-            <div class="step-label">ウォームアップ</div>
-            <div class="step-meta">ゆっくりジョグ</div>
-          </div>
-          <span class="step-pace">6:00/km</span>
-        </li>
-        <li>
-          <span class="step-index" style="background:var(--color-interval)">2</span>
-          <div class="step-info">
-            <div class="step-label">800m ダッシュ × 5本</div>
-            <div class="step-meta">間に200mジョグ休息</div>
-          </div>
-          <span class="step-pace">3:30/km</span>
-        </li>
-        <li>
-          <span class="step-index" style="background:var(--color-easy-run)">3</span>
-          <div class="step-info">
-            <div class="step-label">クールダウン</div>
-            <div class="step-meta">ゆっくりジョグ</div>
-          </div>
-          <span class="step-pace">6:30/km</span>
-        </li>
-      </ul>
-    </div>
-  </div>
-
-  <!-- This Week -->
-  <div class="section" style="padding-top:0">
-    <div class="section-header mx">今週のプラン</div>
-    <div class="week-scroll">
-      <div class="day-card completed">
-        <div class="day-label">Mon</div>
-        <div class="day-date">16</div>
-        <span class="day-type" style="background:var(--color-easy-run)">Easy</span>
-      </div>
-      <div class="day-card completed">
-        <div class="day-label">Tue</div>
-        <div class="day-date">17</div>
-        <span class="day-type" style="background:var(--color-rest-day)">Rest</span>
-      </div>
-      <div class="day-card today">
-        <div class="day-label">Wed</div>
-        <div class="day-date">18</div>
-        <span class="day-type" style="background:var(--color-interval)">Intv</span>
-      </div>
-      <div class="day-card">
-        <div class="day-label">Thu</div>
-        <div class="day-date">19</div>
-        <span class="day-type" style="background:var(--color-easy-run)">Easy</span>
-      </div>
-      <div class="day-card">
-        <div class="day-label">Fri</div>
-        <div class="day-date">20</div>
-        <span class="day-type" style="background:var(--color-rest-day)">Rest</span>
-      </div>
-      <div class="day-card">
-        <div class="day-label">Sat</div>
-        <div class="day-date">21</div>
-        <span class="day-type" style="background:var(--color-tempo-run)">Tempo</span>
-      </div>
-      <div class="day-card">
-        <div class="day-label">Sun</div>
-        <div class="day-date">22</div>
-        <span class="day-type" style="background:var(--color-long-run)">Long</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- Weekly Progress -->
-  <div class="section" style="padding-top:0">
-    <div class="section-header">今週の進捗</div>
-    <div class="card">
-      <div class="progress-section">
-        <div class="progress-ring-wrap">
-          <svg class="progress-ring" width="80" height="80" viewBox="0 0 80 80">
-            <circle class="progress-ring-bg" cx="40" cy="40" r="34"/>
-            <circle class="progress-ring-fill" cx="40" cy="40" r="34"
-              stroke-dasharray="213.6"
-              stroke-dashoffset="128.2"/>
-          </svg>
-          <div class="progress-ring-text">40%</div>
-        </div>
-        <div class="progress-info">
-          <div class="progress-label">2 / 5 ワークアウト完了</div>
-          <div class="progress-detail">今週あと 26.4km 残り</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Weekly Distance -->
-  <div class="section" style="padding-top:0">
-    <div class="section-header">週間走行距離</div>
-    <div class="card">
-      <div class="bar-chart">
-        <div class="bar-col">
-          <div class="bar-value">32</div>
-          <div class="bar" style="height:40px;background:var(--color-fill-primary)"></div>
-          <div class="bar-label">W3</div>
-        </div>
-        <div class="bar-col">
-          <div class="bar-value">38</div>
-          <div class="bar" style="height:50px;background:var(--color-fill-primary)"></div>
-          <div class="bar-label">W4</div>
-        </div>
-        <div class="bar-col">
-          <div class="bar-value">42</div>
-          <div class="bar" style="height:60px;background:var(--color-fill-primary)"></div>
-          <div class="bar-label">W5</div>
-        </div>
-        <div class="bar-col">
-          <div class="bar-value">18</div>
-          <div class="bar" style="height:25px;background:var(--color-brand-primary)"></div>
-          <div class="bar-label">W6</div>
-        </div>
-        <div class="bar-col">
-          <div class="bar-value">45</div>
-          <div class="bar" style="height:65px;background:var(--color-fill-tertiary);border:1px dashed var(--color-separator)"></div>
-          <div class="bar-label">W7</div>
-        </div>
-      </div>
-      <div class="text-sm text-secondary" style="text-align:center;margin-top:var(--space-xs)">
-        W6: 18.0 / 45.0 km
-      </div>
-    </div>
-  </div>
+  <div id="today-content"></div>
 </div>
 
-<!-- ============================================================
-     SCREEN: PLAN
-     ============================================================ -->
+<!-- SCREEN: PLAN -->
 <div id="screen-plan" class="screen">
   <div class="nav-bar">
     <h1>プラン</h1>
-    <div class="subtitle">横浜マラソン 2026 ・ 目標 3:30:00</div>
+    <div class="subtitle" id="plan-subtitle"></div>
   </div>
-
-  <!-- Week 6 -->
-  <div class="plan-week">
-    <div class="plan-week-header mt-lg">Week 6 — ビルドアップ期</div>
-    <ul class="plan-list mx">
-      <li class="plan-item">
-        <span class="plan-dot" style="background:var(--color-easy-run)"></span>
-        <span class="plan-day">月</span>
-        <span class="plan-name">リカバリージョグ</span>
-        <span class="plan-dist">5.0km</span>
-        <span class="plan-check done"></span>
-      </li>
-      <li class="plan-item">
-        <span class="plan-dot" style="background:var(--color-rest-day)"></span>
-        <span class="plan-day">火</span>
-        <span class="plan-name">レスト</span>
-        <span class="plan-dist">—</span>
-        <span class="plan-check done"></span>
-      </li>
-      <li class="plan-item">
-        <span class="plan-dot" style="background:var(--color-interval)"></span>
-        <span class="plan-day">水</span>
-        <span class="plan-name">800m × 5 インターバル</span>
-        <span class="plan-dist">8.2km</span>
-        <span class="plan-check" onclick="toggleCheck(this)"></span>
-      </li>
-      <li class="plan-item">
-        <span class="plan-dot" style="background:var(--color-easy-run)"></span>
-        <span class="plan-day">木</span>
-        <span class="plan-name">イージーラン</span>
-        <span class="plan-dist">8.0km</span>
-        <span class="plan-check" onclick="toggleCheck(this)"></span>
-      </li>
-      <li class="plan-item">
-        <span class="plan-dot" style="background:var(--color-rest-day)"></span>
-        <span class="plan-day">金</span>
-        <span class="plan-name">レスト or クロストレ</span>
-        <span class="plan-dist">—</span>
-        <span class="plan-check" onclick="toggleCheck(this)"></span>
-      </li>
-      <li class="plan-item">
-        <span class="plan-dot" style="background:var(--color-tempo-run)"></span>
-        <span class="plan-day">土</span>
-        <span class="plan-name">テンポラン</span>
-        <span class="plan-dist">10.0km</span>
-        <span class="plan-check" onclick="toggleCheck(this)"></span>
-      </li>
-      <li class="plan-item">
-        <span class="plan-dot" style="background:var(--color-long-run)"></span>
-        <span class="plan-day">日</span>
-        <span class="plan-name">ロングラン</span>
-        <span class="plan-dist">18.0km</span>
-        <span class="plan-check" onclick="toggleCheck(this)"></span>
-      </li>
-    </ul>
-  </div>
-
-  <!-- Week 7 -->
-  <div class="plan-week">
-    <div class="plan-week-header">Week 7 — ビルドアップ期</div>
-    <ul class="plan-list mx">
-      <li class="plan-item">
-        <span class="plan-dot" style="background:var(--color-easy-run)"></span>
-        <span class="plan-day">月</span>
-        <span class="plan-name">リカバリージョグ</span>
-        <span class="plan-dist">6.0km</span>
-        <span class="plan-check" onclick="toggleCheck(this)"></span>
-      </li>
-      <li class="plan-item">
-        <span class="plan-dot" style="background:var(--color-rest-day)"></span>
-        <span class="plan-day">火</span>
-        <span class="plan-name">レスト</span>
-        <span class="plan-dist">—</span>
-        <span class="plan-check" onclick="toggleCheck(this)"></span>
-      </li>
-      <li class="plan-item">
-        <span class="plan-dot" style="background:var(--color-interval)"></span>
-        <span class="plan-day">水</span>
-        <span class="plan-name">1000m × 5 インターバル</span>
-        <span class="plan-dist">10.0km</span>
-        <span class="plan-check" onclick="toggleCheck(this)"></span>
-      </li>
-      <li class="plan-item">
-        <span class="plan-dot" style="background:var(--color-easy-run)"></span>
-        <span class="plan-day">木</span>
-        <span class="plan-name">イージーラン</span>
-        <span class="plan-dist">8.0km</span>
-        <span class="plan-check" onclick="toggleCheck(this)"></span>
-      </li>
-      <li class="plan-item">
-        <span class="plan-dot" style="background:var(--color-cross-train)"></span>
-        <span class="plan-day">金</span>
-        <span class="plan-name">クロストレーニング</span>
-        <span class="plan-dist">—</span>
-        <span class="plan-check" onclick="toggleCheck(this)"></span>
-      </li>
-      <li class="plan-item">
-        <span class="plan-dot" style="background:var(--color-tempo-run)"></span>
-        <span class="plan-day">土</span>
-        <span class="plan-name">テンポラン</span>
-        <span class="plan-dist">12.0km</span>
-        <span class="plan-check" onclick="toggleCheck(this)"></span>
-      </li>
-      <li class="plan-item">
-        <span class="plan-dot" style="background:var(--color-long-run)"></span>
-        <span class="plan-day">日</span>
-        <span class="plan-name">ロングラン</span>
-        <span class="plan-dist">20.0km</span>
-        <span class="plan-check" onclick="toggleCheck(this)"></span>
-      </li>
-    </ul>
-  </div>
+  <div id="plan-content"></div>
+  <div id="monthly-content"></div>
 </div>
 
-<!-- ============================================================
-     SCREEN: FRIENDS
-     ============================================================ -->
+<!-- SCREEN: FRIENDS -->
 <div id="screen-friends" class="screen">
   <div class="nav-bar">
     <h1>仲間</h1>
-    <div class="subtitle">みんなの今日のトレーニング</div>
+    <div class="subtitle">ランニング仲間とシェア</div>
   </div>
-
-  <div class="section">
-    <!-- Friend 1 -->
-    <div class="friend-card">
-      <div class="friend-avatar" style="background:linear-gradient(135deg,#FF6B6B,#FF3B30)">T</div>
-      <div class="friend-info">
-        <div class="friend-name">田中 健太</div>
-        <div class="friend-goal">横浜マラソン ・ 目標 3:15</div>
-        <div class="friend-today">
-          10km テンポラン
-          <span class="done-badge">完了!</span>
-        </div>
-        <div class="friend-week">
-          <div class="friend-week-dot done"></div>
-          <div class="friend-week-dot done"></div>
-          <div class="friend-week-dot done"></div>
-          <div class="friend-week-dot planned"></div>
-          <div class="friend-week-dot planned"></div>
-          <div class="friend-week-dot planned"></div>
-          <div class="friend-week-dot planned"></div>
-        </div>
-      </div>
-      <div class="friend-streak">
-        <div class="streak-num">12</div>
-        <div class="streak-label">日連続</div>
-      </div>
-    </div>
-
-    <!-- Friend 2 -->
-    <div class="friend-card">
-      <div class="friend-avatar" style="background:linear-gradient(135deg,#5AC8FA,#007AFF)">S</div>
-      <div class="friend-info">
-        <div class="friend-name">鈴木 美咲</div>
-        <div class="friend-goal">東京マラソン ・ 目標 4:00</div>
-        <div class="friend-today">
-          6km イージーラン
-        </div>
-        <div class="friend-week">
-          <div class="friend-week-dot done"></div>
-          <div class="friend-week-dot done"></div>
-          <div class="friend-week-dot planned"></div>
-          <div class="friend-week-dot planned"></div>
-          <div class="friend-week-dot planned"></div>
-          <div class="friend-week-dot planned"></div>
-          <div class="friend-week-dot planned"></div>
-        </div>
-      </div>
-      <div class="friend-streak">
-        <div class="streak-num">8</div>
-        <div class="streak-label">日連続</div>
-      </div>
-    </div>
-
-    <!-- Friend 3 -->
-    <div class="friend-card">
-      <div class="friend-avatar" style="background:linear-gradient(135deg,#AF52DE,#5856D6)">Y</div>
-      <div class="friend-info">
-        <div class="friend-name">山本 大輝</div>
-        <div class="friend-goal">横浜マラソン ・ 目標 3:45</div>
-        <div class="friend-today">
-          レスト
-        </div>
-        <div class="friend-week">
-          <div class="friend-week-dot done"></div>
-          <div class="friend-week-dot"></div>
-          <div class="friend-week-dot planned"></div>
-          <div class="friend-week-dot planned"></div>
-          <div class="friend-week-dot planned"></div>
-          <div class="friend-week-dot planned"></div>
-          <div class="friend-week-dot planned"></div>
-        </div>
-      </div>
-      <div class="friend-streak">
-        <div class="streak-num">3</div>
-        <div class="streak-label">日連続</div>
-      </div>
-    </div>
-
-    <!-- Friend 4 -->
-    <div class="friend-card">
-      <div class="friend-avatar" style="background:linear-gradient(135deg,#34C759,#248A3D)">K</div>
-      <div class="friend-info">
-        <div class="friend-name">小林 翔</div>
-        <div class="friend-goal">横浜マラソン ・ 目標 Sub-3</div>
-        <div class="friend-today">
-          16km ロングラン
-          <span class="done-badge">完了!</span>
-        </div>
-        <div class="friend-week">
-          <div class="friend-week-dot done"></div>
-          <div class="friend-week-dot done"></div>
-          <div class="friend-week-dot done"></div>
-          <div class="friend-week-dot planned"></div>
-          <div class="friend-week-dot planned"></div>
-          <div class="friend-week-dot planned"></div>
-          <div class="friend-week-dot planned"></div>
-        </div>
-      </div>
-      <div class="friend-streak">
-        <div class="streak-num">21</div>
-        <div class="streak-label">日連続</div>
-      </div>
-    </div>
-  </div>
+  <div id="auth-area" class="auth-area"></div>
+  <div id="friends-content"></div>
 </div>
 
-<!-- ============================================================
-     SCREEN: GOAL SETUP
-     ============================================================ -->
+<!-- SCREEN: GOAL -->
 <div id="screen-goal" class="screen">
   <div class="nav-bar">
     <h1>目標設定</h1>
-    <div class="subtitle">大会と目標タイムを選択</div>
+    <div class="subtitle">大会と目標タイムを入力</div>
   </div>
-
   <div class="section">
-    <div class="section-header">大会を選択</div>
-    <div class="goal-option selected" onclick="selectGoal(this)">
-      <div class="goal-emoji">&#x1F3C3;</div>
-      <div class="goal-title">横浜マラソン 2026</div>
-      <div class="goal-desc">2026年10月25日 ・ フルマラソン</div>
-    </div>
-    <div class="goal-option" onclick="selectGoal(this)">
-      <div class="goal-emoji">&#x1F5FC;</div>
-      <div class="goal-title">東京マラソン 2027</div>
-      <div class="goal-desc">2027年3月7日 ・ フルマラソン</div>
-    </div>
-    <div class="goal-option" onclick="selectGoal(this)">
-      <div class="goal-emoji">&#x1F3D4;</div>
-      <div class="goal-title">富士山マラソン 2026</div>
-      <div class="goal-desc">2026年11月29日 ・ フルマラソン</div>
-    </div>
+    <div class="section-header">あなたの目標</div>
+    <div id="goal-form-area"></div>
   </div>
-
-  <div class="section" style="padding-top:0">
-    <div class="section-header">目標タイム</div>
-    <div class="goal-option selected" onclick="selectTime(this)">
-      <div class="goal-title">3時間30分 (3:30:00)</div>
-      <div class="goal-desc">ペース目安: 4:58/km</div>
-    </div>
-    <div class="goal-option" onclick="selectTime(this)">
-      <div class="goal-title">4時間00分 (4:00:00)</div>
-      <div class="goal-desc">ペース目安: 5:41/km</div>
-    </div>
-    <div class="goal-option" onclick="selectTime(this)">
-      <div class="goal-title">サブ3 (2:59:59)</div>
-      <div class="goal-desc">ペース目安: 4:15/km</div>
-    </div>
-  </div>
-
-  <button class="cta-btn">
-    プランを自動作成
-  </button>
-  <div class="text-sm text-secondary" style="text-align:center;padding-bottom:var(--space-lg)">
-    作成後、自由にカスタマイズできます
-  </div>
+  <button class="cta-btn" id="generate-btn" onclick="App.generatePlan()">プランを自動作成</button>
+  <div class="text-sm text-secondary" style="text-align:center;padding-bottom:var(--space-lg)">目標タイムからペースを自動算出します</div>
 </div>
 
-<!-- ============================================================
-     COMPLETION OVERLAY
-     ============================================================ -->
+<!-- COMPLETION OVERLAY -->
 <div id="completion-overlay" class="completion-overlay">
   <div class="confetti-container" id="confetti-container"></div>
   <div class="completion-icon">&#x2714;</div>
   <div class="completion-title">ナイスラン!</div>
-  <div class="completion-subtitle">800m × 5 インターバル 完了</div>
-  <div class="completion-stats">
-    <div class="completion-stat">
-      <div class="stat-value">8.2</div>
-      <div class="stat-label">km</div>
-    </div>
-    <div class="completion-stat">
-      <div class="stat-value">45:12</div>
-      <div class="stat-label">タイム</div>
-    </div>
-    <div class="completion-stat">
-      <div class="stat-value">5:31</div>
-      <div class="stat-label">平均/km</div>
-    </div>
-  </div>
-  <button class="completion-close-btn" onclick="hideCompletion()">閉じる</button>
+  <div class="completion-subtitle" id="completion-subtitle"></div>
+  <div class="completion-stats" id="completion-stats"></div>
+  <button class="completion-close-btn" onclick="App.hideCompletion()">閉じる</button>
 </div>
 
-<!-- ============================================================
-     TAB BAR
-     ============================================================ -->
+<!-- TAB BAR -->
 <nav class="tab-bar">
-  <button class="tab-item active" onclick="switchTab('today', this)">
+  <button class="tab-item active" data-tab="today" onclick="App.switchTab('today',this)">
     <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
     今日
   </button>
-  <button class="tab-item" onclick="switchTab('plan', this)">
+  <button class="tab-item" data-tab="plan" onclick="App.switchTab('plan',this)">
     <svg viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM9 10H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2z"/></svg>
     プラン
   </button>
-  <button class="tab-item" onclick="switchTab('friends', this)">
+  <button class="tab-item" data-tab="friends" onclick="App.switchTab('friends',this)">
     <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
     仲間
   </button>
-  <button class="tab-item" onclick="switchTab('goal', this)">
+  <button class="tab-item" data-tab="goal" onclick="App.switchTab('goal',this)">
     <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
     設定
   </button>
 </nav>
 
-<!-- ============================================================
-     SCRIPTS
-     ============================================================ -->
-<script>
-  // Tab switching
-  function switchTab(id, el) {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById('screen-' + id).classList.add('active');
-    document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
-    el.classList.add('active');
-    window.scrollTo(0, 0);
-  }
-
-  // Toggle plan check
-  function toggleCheck(el) {
-    el.classList.toggle('done');
-    if (el.classList.contains('done')) {
-      el.style.transform = 'scale(1.3)';
-      setTimeout(() => el.style.transform = '', 200);
-    }
-  }
-
-  // Goal selection
-  function selectGoal(el) {
-    el.parentElement.querySelectorAll('.goal-option').forEach(o => o.classList.remove('selected'));
-    el.classList.add('selected');
-  }
-  function selectTime(el) {
-    el.parentElement.querySelectorAll('.goal-option').forEach(o => o.classList.remove('selected'));
-    el.classList.add('selected');
-  }
-
-  // Completion overlay
-  function showCompletion() {
-    const overlay = document.getElementById('completion-overlay');
-    overlay.classList.add('show');
-    launchConfetti();
-    // haptic-like vibration if available
-    if (navigator.vibrate) navigator.vibrate([50, 30, 100]);
-  }
-  function hideCompletion() {
-    document.getElementById('completion-overlay').classList.remove('show');
-    document.getElementById('confetti-container').innerHTML = '';
-  }
-
-  // Confetti
-  function launchConfetti() {
-    const container = document.getElementById('confetti-container');
-    const colors = [
-      'var(--color-brand-primary)',
-      'var(--color-success)',
-      'var(--color-brand-accent)',
-      'var(--color-brand-secondary)',
-      '#FF3B30',
-      '#FF9500',
-      '#FFCC00',
-      '#5AC8FA'
-    ];
-    // Use computed CSS color values
-    const computedColors = ['#007AFF','#34C759','#FF9500','#5856D6','#FF3B30','#FF9500','#FFCC00','#5AC8FA'];
-    for (let i = 0; i < 60; i++) {
-      const confetti = document.createElement('div');
-      confetti.classList.add('confetti');
-      confetti.style.left = Math.random() * 100 + '%';
-      confetti.style.background = computedColors[Math.floor(Math.random() * computedColors.length)];
-      confetti.style.width = (Math.random() * 8 + 4) + 'px';
-      confetti.style.height = (Math.random() * 8 + 4) + 'px';
-      confetti.style.animationDuration = (Math.random() * 2 + 1.5) + 's';
-      confetti.style.animationDelay = (Math.random() * 0.8) + 's';
-      if (Math.random() > 0.5) confetti.style.borderRadius = '50%';
-      container.appendChild(confetti);
-    }
-  }
-</script>
-
+<!-- Firebase SDK (loaded only if config is set) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="social.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
