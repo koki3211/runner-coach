@@ -746,16 +746,20 @@ const App = {
       '<option value="' + t + '"' + (t === targetDay.type ? ' selected' : '') + '>' + TYPE_JA[t] + '</option>'
     ).join('');
 
+    const dd = fromISO(dateStr);
+    const distVal = targetDay.type === 'interval' ? formatDist(targetDay.dist, 'interval') : Math.round(targetDay.dist);
+    const stepVal = targetDay.type === 'interval' ? '0.1' : '1';
+
     const overlay = document.getElementById('edit-overlay');
     overlay.innerHTML =
       '<div class="edit-backdrop" onclick="App.closeEditWorkout()"></div>' +
       '<div class="edit-sheet">' +
         '<div class="edit-sheet-handle"></div>' +
-        '<div class="edit-sheet-title">' + targetDay.dayJa + ' ' + fromISO(dateStr).getMonth() + '/' + fromISO(dateStr).getDate() + ' のメニュー</div>' +
+        '<div class="edit-sheet-title">' + targetDay.dayJa + ' ' + (dd.getMonth() + 1) + '/' + dd.getDate() + ' のメニュー</div>' +
         '<div class="edit-field"><label class="form-label">種類</label>' +
           '<select id="edit-type" class="form-input edit-select">' + typeOptions + '</select></div>' +
         '<div class="edit-field"><label class="form-label">距離 (km)</label>' +
-          '<input type="number" id="edit-dist" class="form-input" value="' + Math.round(targetDay.dist) + '" min="0" step="1"></div>' +
+          '<input type="number" id="edit-dist" class="form-input" value="' + distVal + '" min="0" step="' + stepVal + '"></div>' +
         '<div class="edit-field"><label class="form-label">メモ</label>' +
           '<input type="text" id="edit-name" class="form-input" value="' + escapeHtml(targetDay.name) + '"></div>' +
         '<div class="edit-actions">' +
@@ -772,7 +776,8 @@ const App = {
 
   saveEditWorkout(dateStr) {
     const newType = document.getElementById('edit-type').value;
-    const newDist = parseInt(document.getElementById('edit-dist').value) || 0;
+    const rawDist = parseFloat(document.getElementById('edit-dist').value) || 0;
+    const newDist = newType === 'interval' ? Math.round(rawDist * 10) / 10 : Math.round(rawDist);
     const newName = document.getElementById('edit-name').value.trim();
 
     for (const week of this.state.plan) {
