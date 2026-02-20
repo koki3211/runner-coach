@@ -123,9 +123,11 @@ function generatePlanData(raceName, raceDate, raceType, targetTime) {
     const longDist = roundKm((longBase + w * 1.2) * scale * paceScale * taperFactor * volMult);
 
     const intv = INTERVALS[w % INTERVALS.length];
-    // Interval distance = warmup 2km + reps distance + cooldown 2km
+    // Interval distance = warmup 2km + reps distance + rest jog distance + cooldown 2km
     const repsDist = parseRepsDist(intv.reps);
-    const intervalDist = roundKm(2 + repsDist + 2);
+    const repsCount = parseInt((intv.reps.match(/[×x]\s*(\d+)/i) || [, '1'])[1]);
+    const restDist = parseRestDist(intv.rest) * (repsCount - 1) / 1000;
+    const intervalDist = roundKm(2 + repsDist + restDist + 2);
     const weekStart = addDays(startMonday, w * 7);
 
     const days = [
@@ -166,6 +168,12 @@ function parseRepsDist(repsStr) {
   return (parseInt(m[1]) * parseInt(m[2])) / 1000;
 }
 
+// Parse rest string like "200mジョグ" → meters (e.g. 200)
+function parseRestDist(restStr) {
+  const m = restStr.match(/(\d+)m/);
+  return m ? parseInt(m[1]) : 200;
+}
+
 // --- Monthly aggregation ---
 function calcMonthlyData(plan, completed) {
   if (!plan) return [];
@@ -199,9 +207,12 @@ const App = {
       let migrated = false;
       for (const week of this.state.plan) {
         for (const day of week.days) {
-          // Recalculate interval distances: warmup 2km + reps + cooldown 2km
+          // Recalculate interval distances: warmup 2km + reps + rest jog + cooldown 2km
           if (day.type === 'interval' && day.detail) {
-            const correctDist = roundKm(2 + parseRepsDist(day.detail.reps) + 2);
+            const rd = parseRepsDist(day.detail.reps);
+            const rc = parseInt((day.detail.reps.match(/[×x]\s*(\d+)/i) || [, '1'])[1]);
+            const rstD = parseRestDist(day.detail.rest) * (rc - 1) / 1000;
+            const correctDist = roundKm(2 + rd + rstD + 2);
             if (day.dist !== correctDist) {
               day.dist = correctDist;
               migrated = true;
@@ -323,7 +334,7 @@ const App = {
     if (dateInput && s.raceDate) dateInput.value = s.raceDate;
     if (s.raceType) {
       document.querySelectorAll('.segment').forEach(seg => {
-        seg.classList.toggle('selected', seg.dataset.value === s.raceType);
+        seg.classList.toggle('active', seg.dataset.value === s.raceType);
       });
     }
     if (s.targetTime) {
@@ -334,15 +345,15 @@ const App = {
   },
 
   selectRaceType(el) {
-    el.parentElement.querySelectorAll('.segment').forEach(s => s.classList.remove('selected'));
-    el.classList.add('selected');
+    el.parentElement.querySelectorAll('.segment').forEach(s => s.classList.remove('active'));
+    el.classList.add('active');
   },
 
   // --- Generate Plan ---
   generatePlan() {
     const raceName = document.getElementById('input-race-name').value.trim();
     const raceDate = document.getElementById('input-race-date').value;
-    const raceTypeSeg = document.querySelector('.segment.selected');
+    const raceTypeSeg = document.querySelector('.segment.active');
     const raceType = raceTypeSeg ? raceTypeSeg.dataset.value : 'full';
     const h = document.getElementById('input-time-h').value;
     const m = document.getElementById('input-time-m').value;
@@ -566,12 +577,15 @@ const App = {
       for (const day of week.days) {
         const done = this.isCompleted(day.date);
         const distLabel = day.dist > 0 ? Math.round(day.dist) + 'km' : '\u2014';
-        html += '<li class="plan-item">' +
+        const d = fromISO(day.date);
+        const dateLabel = (d.getMonth() + 1) + '/' + d.getDate();
+        html += '<li class="plan-item" onclick="App.openEditWorkout(\'' + day.date + '\')">' +
           '<span class="plan-dot" style="background:' + TYPE_COLORS[day.type] + '"></span>' +
           '<span class="plan-day">' + day.dayJa + '</span>' +
+          '<span class="plan-date">' + dateLabel + '</span>' +
           '<span class="plan-name">' + escapeHtml(day.name) + '</span>' +
           '<span class="plan-dist">' + distLabel + '</span>' +
-          '<span class="plan-check' + (done ? ' done' : '') + '" onclick="App.toggleComplete(\'' + day.date + '\')"></span></li>';
+          '<span class="plan-check' + (done ? ' done' : '') + '" onclick="event.stopPropagation();App.toggleComplete(\'' + day.date + '\')"></span></li>';
       }
       html += '</ul></div>';
     }
@@ -717,6 +731,76 @@ const App = {
   async declineFriend(reqId) {
     await Social.declineRequest(reqId);
     this.renderFriends();
+  },
+
+  // --- Edit Workout ---
+  openEditWorkout(dateStr) {
+    if (!this.state || !this.state.plan) return;
+    let targetDay = null;
+    for (const week of this.state.plan) {
+      for (const day of week.days) {
+        if (day.date === dateStr) { targetDay = day; break; }
+      }
+      if (targetDay) break;
+    }
+    if (!targetDay) return;
+
+    const typeOptions = Object.keys(TYPE_JA).map(t =>
+      '<option value="' + t + '"' + (t === targetDay.type ? ' selected' : '') + '>' + TYPE_JA[t] + '</option>'
+    ).join('');
+
+    const overlay = document.getElementById('edit-overlay');
+    overlay.innerHTML =
+      '<div class="edit-backdrop" onclick="App.closeEditWorkout()"></div>' +
+      '<div class="edit-sheet">' +
+        '<div class="edit-sheet-handle"></div>' +
+        '<div class="edit-sheet-title">' + targetDay.dayJa + ' ' + fromISO(dateStr).getMonth() + '/' + fromISO(dateStr).getDate() + ' のメニュー</div>' +
+        '<div class="edit-field"><label class="form-label">種類</label>' +
+          '<select id="edit-type" class="form-input edit-select">' + typeOptions + '</select></div>' +
+        '<div class="edit-field"><label class="form-label">距離 (km)</label>' +
+          '<input type="number" id="edit-dist" class="form-input" value="' + Math.round(targetDay.dist) + '" min="0" step="1"></div>' +
+        '<div class="edit-field"><label class="form-label">メモ</label>' +
+          '<input type="text" id="edit-name" class="form-input" value="' + escapeHtml(targetDay.name) + '"></div>' +
+        '<div class="edit-actions">' +
+          '<button class="edit-cancel-btn" onclick="App.closeEditWorkout()">キャンセル</button>' +
+          '<button class="cta-btn edit-save-btn" onclick="App.saveEditWorkout(\'' + dateStr + '\')">保存</button>' +
+        '</div>' +
+      '</div>';
+    overlay.classList.add('show');
+  },
+
+  closeEditWorkout() {
+    document.getElementById('edit-overlay').classList.remove('show');
+  },
+
+  saveEditWorkout(dateStr) {
+    const newType = document.getElementById('edit-type').value;
+    const newDist = parseInt(document.getElementById('edit-dist').value) || 0;
+    const newName = document.getElementById('edit-name').value.trim();
+
+    for (const week of this.state.plan) {
+      for (const day of week.days) {
+        if (day.date === dateStr) {
+          day.type = newType;
+          day.dist = newDist;
+          day.name = newName || TYPE_JA[newType] || newType;
+          if (this.state.paces && this.state.paces[newType]) {
+            day.pace = this.state.paces[newType];
+          }
+          break;
+        }
+      }
+      // Recalc week total
+      const hasDay = week.days.find(d => d.date === dateStr);
+      if (hasDay) {
+        week.totalDist = roundKm(week.days.reduce((s, d) => s + d.dist, 0));
+      }
+    }
+    saveState(this.state);
+    this.closeEditWorkout();
+    this.renderPlan();
+    this.renderToday();
+    if (typeof Social !== 'undefined' && Social.enabled) Social.syncToCloud(this.state);
   },
 
   // --- Toggle Completion ---
