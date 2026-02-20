@@ -46,10 +46,10 @@
 // ============================================================
 
 const FIREBASE_CONFIG = {
-  apiKey: "",
-  authDomain: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: ""
+  apiKey: "AIzaSyCxUXOA6dtxmONoc3IP0cwn4XDXCd2iwxE",
+  authDomain: "runner-coach-a0366.firebaseapp.com",
+  projectId: "runner-coach-a0366",
+  storageBucket: "runner-coach-a0366.firebasestorage.app",
+  messagingSenderId: "853785334128",
+  appId: "1:853785334128:web:91e42669d0a78087f1ffb5"
 };
