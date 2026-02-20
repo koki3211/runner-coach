@@ -89,6 +89,7 @@ const Social = {
         planWeeks: state.plan ? state.plan.length : 0
       },
       completed: state.completed || {},
+      plan: state.plan || [],
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
     await this.db.collection('users').doc(this.currentUser.uid).set(data, { merge: true });

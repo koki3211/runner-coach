@@ -668,6 +668,45 @@
       font-size: var(--font-size-caption2); color: var(--color-label-secondary);
     }
 
+    /* Friend Plan Overlay */
+    .friend-plan-overlay {
+      position: fixed; inset: 0; z-index: 800;
+      background: var(--color-bg-grouped);
+      display: none; flex-direction: column;
+    }
+    .friend-plan-overlay.show { display: flex; animation: fadeIn var(--duration-normal) var(--easing-default); }
+    .friend-plan-header {
+      position: sticky; top: 0; z-index: 10;
+      background: var(--color-bg-primary);
+      padding: var(--space-lg) var(--space-base) var(--space-md);
+      border-bottom: 0.5px solid var(--color-separator);
+      text-align: center;
+    }
+    .friend-plan-close {
+      position: absolute; top: var(--space-md); right: var(--space-base);
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--color-fill-tertiary); border: none;
+      font-size: 16px; cursor: pointer; display: flex;
+      align-items: center; justify-content: center;
+      color: var(--color-label-secondary);
+    }
+    .friend-plan-close:active { opacity: 0.7; }
+    .friend-plan-name {
+      font-size: var(--font-size-title3); font-weight: var(--font-weight-bold);
+    }
+    .friend-plan-subtitle {
+      font-size: var(--font-size-subhead); color: var(--color-label-secondary);
+      margin-top: var(--space-xs);
+    }
+    .friend-plan-body {
+      flex: 1; overflow-y: auto;
+      padding-bottom: calc(var(--space-4xl) + var(--safe-area-bottom));
+    }
+    .friend-plan-today {
+      background: rgba(0, 122, 255, 0.06) !important;
+      border-left: 3px solid var(--color-brand-primary);
+    }
+
     /* Utility */
     .mx { margin-left: var(--space-base); margin-right: var(--space-base); }
     .text-secondary { color: var(--color-label-secondary); }
@@ -751,6 +790,9 @@
 
 <!-- EDIT WORKOUT OVERLAY -->
 <div id="edit-overlay" class="edit-overlay"></div>
+
+<!-- FRIEND PLAN OVERLAY -->
+<div id="friend-plan-overlay" class="friend-plan-overlay"></div>
 
 <!-- COMPLETION OVERLAY -->
 <div id="completion-overlay" class="completion-overlay">
