@@ -135,16 +135,18 @@ function generatePlanData(raceType, targetSeconds, raceDate) {
     const taperFactor = phase === 'taper' ? 0.65 - ((pct - 0.85) / 0.15) * 0.2 : 1.0;
     const factor = progress * taperFactor * volMult;
 
-    // Distance calculations
-    const jogDist = Math.round(7 * scale * Math.min(factor, 1.5) * 10) / 10;
-    const jogShortDist = Math.round(5 * scale * Math.min(factor, 1.3) * 10) / 10;
-    const intervalDist = Math.round(8 * scale * Math.min(factor, 1.4) * 10) / 10;
-    const tempoDist = Math.round(10 * scale * factor * 10) / 10;
+    // Distance calculations — all rounded to whole km
+    const jogDist = Math.round(7 * scale * Math.min(factor, 1.5));
+    const jogShortDist = Math.round(5 * scale * Math.min(factor, 1.3));
+    const tempoDist = Math.round(10 * scale * factor);
     const longBase = 14 + (pct * 16); // 14km → 30km progression
     const maxLong = raceType === 'half' ? 18 : 32;
-    const longDist = Math.min(maxLong, Math.round(longBase * scale * taperFactor * volMult * 10) / 10);
+    const longDist = Math.min(maxLong, Math.round(longBase * scale * taperFactor * volMult));
 
     const intv = INTERVALS[w % INTERVALS.length];
+    // Interval distance = reps × distance per rep (e.g. "800m × 5" → 0.8 * 5 = 4km)
+    const intvMatch = intv.reps.match(/(\d+)m\s*[×x]\s*(\d+)/);
+    const intervalDist = intvMatch ? Math.round((parseInt(intvMatch[1]) * parseInt(intvMatch[2])) / 1000) : 4;
     const weekStart = addDays(monday, w * 7);
 
     // Weekly pattern: 休息1日 + ジョグ3日 + インターバル1日 + テンポ走1日 + ロング走1日
@@ -171,7 +173,7 @@ function generatePlanData(raceType, targetSeconds, raceDate) {
       weekNum: w + 1, phase, phaseName, isRecovery,
       startDate: toISO(weekStart),
       days: weekDays,
-      totalDist: Math.round(totalDist * 10) / 10
+      totalDist: Math.round(totalDist)
     });
   }
   return weeks;
@@ -240,12 +242,8 @@ const App = {
       this.switchTab('goal', document.querySelector('[data-tab="goal"]'));
     }
 
-    // Init Firebase Social
-    if (typeof Social !== 'undefined') {
-      Social.init();
-    } else {
-      this.renderFriendsOffline();
-    }
+    // Render share tab
+    this.renderShare();
 
     // Register service worker
     if ('serviceWorker' in navigator) {
@@ -253,54 +251,170 @@ const App = {
     }
   },
 
-  // --- Auth callback from Social ---
-  onAuthChanged(user) {
-    this.renderAuthUI(user);
-    if (user) {
-      this.syncToCloud();
-      this.renderFriendsLive();
-    } else {
-      this.renderFriendsOffline();
+  // --- Share ---
+  buildShareText() {
+    if (!this.state || !this.state.plan) return null;
+    const s = this.state;
+    const lines = [];
+    lines.push(`Runner Coach - トレーニングプラン`);
+    lines.push(`${s.raceName || 'レース'} (${s.raceType === 'full' ? 'フル' : 'ハーフ'})`);
+    const h = Math.floor((s.targetHours || 0));
+    const m = s.targetMinutes || 0;
+    lines.push(`目標タイム: ${h}時間${m}分`);
+    lines.push(`レース日: ${s.raceDate}`);
+    lines.push('');
+
+    // Current week progress
+    const todayDate = today();
+    const mon = getMonday(todayDate);
+    let currentWeek = null;
+    for (const week of s.plan) {
+      const weekStart = fromISO(week.days[0].date);
+      const weekEnd = addDays(weekStart, 6);
+      if (todayDate >= weekStart && todayDate <= weekEnd) {
+        currentWeek = week;
+        break;
+      }
     }
+
+    if (currentWeek) {
+      lines.push(`--- 今週 (Week ${currentWeek.weekNum}) ---`);
+      for (const day of currentWeek.days) {
+        const done = s.completed && s.completed[day.date];
+        const mark = done ? '[v]' : '[ ]';
+        if (day.type === 'rest') {
+          lines.push(`${mark} ${day.dayJa} 休息`);
+        } else {
+          lines.push(`${mark} ${day.dayJa} ${day.name} ${day.dist}km (${day.pace})`);
+        }
+      }
+      const completedCount = currentWeek.days.filter(d => s.completed && s.completed[d.date]).length;
+      const activeDays = currentWeek.days.filter(d => d.type !== 'rest').length;
+      const completedActive = currentWeek.days.filter(d => d.type !== 'rest' && s.completed && s.completed[d.date]).length;
+      lines.push(`進捗: ${completedActive}/${activeDays}日完了`);
+    }
+
+    // Streak
+    let streak = 0;
+    const d = new Date();
+    d.setHours(0,0,0,0);
+    const todayStr = toISO(d);
+    if (!(s.completed && s.completed[todayStr])) d.setDate(d.getDate() - 1);
+    while (s.completed && s.completed[toISO(d)]) { streak++; d.setDate(d.getDate() - 1); }
+    if (streak > 0) {
+      lines.push('');
+      lines.push(`${streak}日連続トレーニング中!`);
+    }
+
+    return lines.join('\n');
   },
 
-  renderAuthUI(user) {
-    const el = document.getElementById('auth-area');
+  renderShare() {
+    const el = document.getElementById('friends-content');
     if (!el) return;
-    if (user) {
-      const photo = user.photoURL
-        ? `<img class="auth-avatar" src="${escapeHtml(user.photoURL)}" alt="">`
-        : `<div class="auth-avatar-placeholder">${escapeHtml((user.displayName || 'U')[0])}</div>`;
-      el.innerHTML = `<div class="auth-logged-in">
-        ${photo}
-        <div class="auth-info">
-          <div class="auth-name">${escapeHtml(user.displayName || user.email)}</div>
-          <button class="auth-link" onclick="App.doLogout()">ログアウト</button>
+
+    if (!this.state || !this.state.plan) {
+      el.innerHTML = `<div class="empty-state"><div class="empty-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--color-label-tertiary)" stroke-width="1.5"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
         </div>
-      </div>`;
-    } else {
-      const enabled = typeof Social !== 'undefined' && Social.enabled;
-      el.innerHTML = enabled
-        ? `<button class="login-btn" onclick="App.doLogin()">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
-            Googleでログイン</button>`
-        : `<div class="auth-offline">オフラインモード</div>`;
+        <div class="empty-text">プランを作成すると<br>トレーニング内容をシェアできます</div>
+        <button class="empty-btn" onclick="App.switchTab('goal',document.querySelector('[data-tab=goal]'))">プランを作成</button></div>`;
+      return;
+    }
+
+    const shareText = this.buildShareText();
+
+    let html = '';
+
+    // Preview card
+    html += `<div class="section">
+      <div class="section-header">シェア内容プレビュー</div>
+      <div class="card share-preview">${escapeHtml(shareText).replace(/\n/g, '<br>')}</div>
+    </div>`;
+
+    // Share buttons
+    html += `<div class="section" style="padding-top:0">
+      <div class="section-header">シェアする</div>
+      <div class="share-buttons">
+        <button class="share-btn share-btn-line" onclick="App.shareViaLine()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.064-.023.134-.034.2-.034.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63.346 0 .628.285.628.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.282.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/></svg>
+          LINEで送る
+        </button>
+        <button class="share-btn share-btn-x" onclick="App.shareViaX()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          Xでポスト
+        </button>
+        <button class="share-btn share-btn-copy" onclick="App.shareCopy()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+          コピー
+        </button>`;
+
+    // Web Share API available
+    html += `
+        <button class="share-btn share-btn-other" onclick="App.shareNative()" id="share-native-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          その他
+        </button>
+      </div>
+    </div>`;
+
+    el.innerHTML = html;
+
+    // Hide native share button if not supported
+    if (!navigator.share) {
+      const btn = document.getElementById('share-native-btn');
+      if (btn) btn.style.display = 'none';
     }
   },
 
-  async doLogin() {
-    if (typeof Social === 'undefined') return;
-    await Social.login();
+  shareViaLine() {
+    const text = this.buildShareText();
+    if (!text) return;
+    const url = 'https://line.me/R/msg/text/?' + encodeURIComponent(text);
+    window.open(url, '_blank');
   },
 
-  async doLogout() {
-    if (typeof Social === 'undefined') return;
-    await Social.logout();
+  shareViaX() {
+    const text = this.buildShareText();
+    if (!text) return;
+    // X has 280 char limit, build shorter version
+    const s = this.state;
+    const h = Math.floor((s.targetHours || 0));
+    const m = s.targetMinutes || 0;
+    let streak = 0;
+    const d = new Date(); d.setHours(0,0,0,0);
+    if (!(s.completed && s.completed[toISO(d)])) d.setDate(d.getDate() - 1);
+    while (s.completed && s.completed[toISO(d)]) { streak++; d.setDate(d.getDate() - 1); }
+
+    let tweet = `${s.raceName || 'レース'}に向けてトレーニング中!\n目標: ${h}時間${m}分`;
+    if (streak > 0) tweet += `\n${streak}日連続トレーニング達成!`;
+    tweet += '\n#RunnerCoach #ランニング';
+
+    const url = 'https://x.com/intent/tweet?text=' + encodeURIComponent(tweet);
+    window.open(url, '_blank');
   },
 
-  async syncToCloud() {
-    if (typeof Social === 'undefined' || !this.state) return;
-    await Social.syncToCloud(this.state);
+  shareCopy() {
+    const text = this.buildShareText();
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.querySelector('.share-btn-copy');
+      if (btn) {
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> コピー済み!';
+        setTimeout(() => { btn.innerHTML = orig; }, 2000);
+      }
+    }).catch(() => { prompt('テキストをコピー:', text); });
+  },
+
+  async shareNative() {
+    const text = this.buildShareText();
+    if (!text || !navigator.share) return;
+    try {
+      await navigator.share({ title: 'Runner Coach - トレーニングプラン', text: text });
+    } catch (e) {
+      if (e.name !== 'AbortError') console.error('Share failed:', e);
+    }
   },
 
   // --- Tab Switching ---
@@ -323,7 +437,6 @@ const App = {
     document.getElementById('plan-content').innerHTML =
       '<div class="empty-state"><div class="empty-icon">\u{1F4CB}</div>' +
       '<div class="empty-text">プランを作成すると<br>ここに表示されます</div></div>';
-    document.getElementById('monthly-content').innerHTML = '';
   },
 
   // --- Goal Screen ---
@@ -443,7 +556,7 @@ const App = {
     this.renderPlan();
     this.renderMonthlyChart();
     this.switchTab('today', document.querySelector('[data-tab="today"]'));
-    this.syncToCloud();
+    this.renderShare();
   },
 
   // --- Get Today's Workout ---
@@ -493,7 +606,7 @@ const App = {
     const weekCompleted = week.days.filter(d => this.isCompleted(d.date)).length;
     const weekWorkouts = week.days.filter(d => d.type !== 'rest').length;
     const weekCompletedDist = week.days.filter(d => this.isCompleted(d.date)).reduce((s, d) => s + d.dist, 0);
-    const weekRemainDist = Math.round((week.totalDist - weekCompletedDist) * 10) / 10;
+    const weekRemainDist = Math.round(week.totalDist - weekCompletedDist);
     const progressPct = weekWorkouts > 0 ? Math.round((weekCompleted / weekWorkouts) * 100) : 0;
     const circumference = 2 * Math.PI * 34;
     const dashoffset = circumference * (1 - progressPct / 100);
@@ -517,11 +630,11 @@ const App = {
     } else if (w.type === 'tempo') {
       stepsHTML = buildSteps([
         { label: 'ウォームアップ', meta: '2km ジョグ', pace: paces.easy, color: 'var(--color-easy-run)' },
-        { label: 'テンポ走', meta: `${Math.round((w.dist - 4) * 10) / 10}km`, pace: paces.tempo, color: 'var(--color-tempo-run)' },
+        { label: 'テンポ走', meta: `${Math.round(w.dist - 4)}km`, pace: paces.tempo, color: 'var(--color-tempo-run)' },
         { label: 'クールダウン', meta: '2km ジョグ', pace: paces.easy, color: 'var(--color-easy-run)' }
       ]);
     } else if (w.type === 'long') {
-      const third = Math.round(w.dist / 3 * 10) / 10;
+      const third = Math.round(w.dist / 3);
       stepsHTML = buildSteps([
         { label: 'イージースタート', meta: `${third}km`, pace: paces.easy, color: 'var(--color-easy-run)' },
         { label: 'ステディペース', meta: `${third}km`, pace: paces.long, color: 'var(--color-long-run)' },
@@ -625,7 +738,7 @@ const App = {
         <div class="card">
           <div class="bar-chart">${barChartHTML}</div>
           <div class="text-sm text-secondary" style="text-align:center;margin-top:var(--space-xs)">
-            W${week.weekNum}: ${Math.round(weekCompletedDist * 10) / 10} / ${week.totalDist} km
+            W${week.weekNum}: ${Math.round(weekCompletedDist)} / ${week.totalDist} km
           </div>
         </div>
       </div>`;
@@ -693,10 +806,14 @@ const App = {
     }, 100);
   },
 
-  // --- Monthly Chart ---
+  // --- Monthly Chart (appended to today tab) ---
   renderMonthlyChart() {
-    const el = document.getElementById('monthly-content');
-    if (!el || !this.state || !this.state.plan) { if (el) el.innerHTML = ''; return; }
+    // Remove old monthly content if exists
+    const old = document.getElementById('monthly-chart-section');
+    if (old) old.remove();
+
+    const todayEl = document.getElementById('today-content');
+    if (!todayEl || !this.state || !this.state.plan) return;
 
     // Gather all plan days into a map: month -> { planned, completed }
     const months = {};
@@ -710,14 +827,13 @@ const App = {
     }
 
     const sortedMonths = Object.keys(months).sort();
-    if (sortedMonths.length === 0) { el.innerHTML = ''; return; }
+    if (sortedMonths.length === 0) return;
 
     const maxDist = Math.max(...sortedMonths.map(m => months[m].planned));
 
     const barsHTML = sortedMonths.map(ym => {
       const d = months[ym];
       const plannedH = Math.round((d.planned / maxDist) * 120);
-      const completedH = Math.round((d.completed / maxDist) * 120);
       const label = ym.split('-')[1] + '月';
       return `<div class="monthly-col">
         <div class="monthly-values">
@@ -732,8 +848,10 @@ const App = {
       </div>`;
     }).join('');
 
-    el.innerHTML = `
-      <div class="section">
+    const section = document.createElement('div');
+    section.id = 'monthly-chart-section';
+    section.innerHTML = `
+      <div class="section" style="padding-top:0">
         <div class="section-header">月間走行距離 (km)</div>
         <div class="card">
           <div class="monthly-chart">${barsHTML}</div>
@@ -743,165 +861,7 @@ const App = {
           </div>
         </div>
       </div>`;
-  },
-
-  // --- Friends ---
-  renderFriendsOffline() {
-    const el = document.getElementById('friends-content');
-    if (!el) return;
-    const hasAuth = typeof Social !== 'undefined' && Social.enabled;
-    el.innerHTML = hasAuth
-      ? `<div class="empty-state"><div class="empty-icon">\u{1F465}</div>
-          <div class="empty-text">ログインするとランニング仲間と<br>トレーニング状況をシェアできます</div>
-          <button class="empty-btn" onclick="App.doLogin()">Googleでログイン</button></div>`
-      : `<div class="empty-state"><div class="empty-icon">\u{1F465}</div>
-          <div class="empty-text">Firebase未設定のため<br>仲間機能はオフラインです</div>
-          <div class="text-sm text-secondary mt-md">firebase-config.js を設定してください</div></div>`;
-  },
-
-  async renderFriendsLive() {
-    const el = document.getElementById('friends-content');
-    if (!el || typeof Social === 'undefined' || !Social.currentUser) return;
-
-    el.innerHTML = '<div class="empty-state"><div class="empty-text">読み込み中...</div></div>';
-
-    // Get user's short ID
-    const myShortId = await Social.getOrCreateUserId();
-
-    // Friend request area
-    const requests = await Social.getIncomingRequests();
-    const friends = await Social.loadFriendsData();
-
-    let html = '';
-
-    // My ID section
-    html += `<div class="section">
-      <div class="section-header">あなたのID</div>
-      <div class="card my-id-card">
-        <div class="my-id-code">${escapeHtml(myShortId || '---')}</div>
-        <div class="my-id-actions">
-          <button class="id-copy-btn" onclick="App.copyMyId('${escapeHtml(myShortId || '')}')">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-            コピー
-          </button>
-          <button class="id-copy-btn line-btn" onclick="App.inviteViaLine('${escapeHtml(myShortId || '')}')">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.064-.023.134-.034.2-.034.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63.346 0 .628.285.628.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.282.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/></svg>
-            LINEで招待
-          </button>
-        </div>
-      </div>
-    </div>`;
-
-    // Add friend section
-    html += `<div class="section" style="padding-top:0">
-      <div class="section-header">仲間を追加</div>
-      <div class="card" style="display:flex;gap:var(--space-sm)">
-        <input class="form-input" id="friend-id-input" type="text" placeholder="ユーザーIDを入力" style="flex:1;margin:0" maxlength="8">
-        <button class="cta-btn" style="width:auto;margin:0;padding:var(--space-sm) var(--space-base);font-size:var(--font-size-subhead)" onclick="App.sendFriendReqById()">追加</button>
-      </div>
-    </div>`;
-
-    // Pending requests
-    if (requests.length > 0) {
-      html += '<div class="section" style="padding-top:0"><div class="section-header">フレンドリクエスト</div>';
-      for (const req of requests) {
-        html += `<div class="friend-card">
-          <div class="friend-avatar" style="background:linear-gradient(135deg,#FF9500,#FF6B00)">${escapeHtml((req.fromName || '?')[0])}</div>
-          <div class="friend-info">
-            <div class="friend-name">${escapeHtml(req.fromName)}</div>
-          </div>
-          <button class="cta-btn" style="width:auto;margin:0;padding:var(--space-xs) var(--space-md);font-size:var(--font-size-caption1)" onclick="App.acceptFriend('${req.id}','${req.fromUid}')">承認</button>
-          <button class="auth-link" onclick="App.declineFriend('${req.id}')">拒否</button>
-        </div>`;
-      }
-      html += '</div>';
-    }
-
-    // Friends list
-    if (friends.length > 0) {
-      html += '<div class="section" style="padding-top:0"><div class="section-header">仲間</div>';
-      for (const f of friends) {
-        const streak = Social.calcStreak(f.completed);
-        const tw = Social.getTodayWorkoutForUser(f);
-        const todayLabel = tw ? (tw.done ? `<span class="done-badge">完了!</span>` : tw.label) : '';
-        const initial = (f.displayName || f.email || '?')[0].toUpperCase();
-        const photo = f.photoURL
-          ? `<img class="friend-avatar" src="${escapeHtml(f.photoURL)}" alt="" style="width:48px;height:48px;border-radius:50%">`
-          : `<div class="friend-avatar" style="background:linear-gradient(135deg,#5AC8FA,#007AFF)">${escapeHtml(initial)}</div>`;
-
-        const goal = f.settings
-          ? `${escapeHtml(f.settings.raceName || '')} ${f.settings.targetTime ? '・目標 ' + escapeHtml(f.settings.targetTime) : ''}`
-          : '';
-
-        // Week dots
-        const weekDots = [];
-        const mon = getMonday(today());
-        for (let i = 0; i < 7; i++) {
-          const d = toISO(addDays(mon, i));
-          const done = f.completed && f.completed[d];
-          weekDots.push(`<div class="friend-week-dot${done ? ' done' : ''}"></div>`);
-        }
-
-        html += `<div class="friend-card">
-          ${photo}
-          <div class="friend-info">
-            <div class="friend-name">${escapeHtml(f.displayName || f.email)}</div>
-            <div class="friend-goal">${goal}</div>
-            <div class="friend-today">${todayLabel}</div>
-            <div class="friend-week">${weekDots.join('')}</div>
-          </div>
-          <div class="friend-streak"><div class="streak-num">${streak}</div><div class="streak-label">日連続</div></div>
-        </div>`;
-      }
-      html += '</div>';
-    } else if (requests.length === 0) {
-      html += `<div class="empty-state" style="padding-top:var(--space-xl)"><div class="empty-icon">\u{1F465}</div>
-        <div class="empty-text">まだ仲間がいません<br>ユーザーIDで友達を追加するか<br>LINEで招待しよう</div></div>`;
-    }
-
-    el.innerHTML = html;
-  },
-
-  async sendFriendReqById() {
-    const input = document.getElementById('friend-id-input');
-    if (!input) return;
-    const shortId = input.value.trim().toUpperCase();
-    if (!shortId) { alert('ユーザーIDを入力してください'); return; }
-    const users = await Social.searchUserByShortId(shortId);
-    if (users.length === 0) { alert('ユーザーが見つかりません'); return; }
-    const target = users[0];
-    const ok = await Social.sendFriendRequestByUid(target.uid, target.displayName || target.email);
-    if (ok) {
-      alert(`${target.displayName || target.email} にリクエストを送信しました`);
-      input.value = '';
-    } else {
-      alert('送信できませんでした（既に送信済みか、友達です）');
-    }
-  },
-
-  copyMyId(id) {
-    if (!id) return;
-    navigator.clipboard.writeText(id).then(() => {
-      const btn = document.querySelector('.id-copy-btn');
-      if (btn) { const orig = btn.innerHTML; btn.textContent = 'コピー済み!'; setTimeout(() => { btn.innerHTML = orig; }, 1500); }
-    }).catch(() => { prompt('IDをコピー:', id); });
-  },
-
-  inviteViaLine(id) {
-    if (!id) return;
-    const msg = `Runner Coachで一緒にトレーニングしよう！\n私のユーザーID: ${id}\nアプリで「仲間」タブからこのIDを入力して友達になってね！`;
-    const url = 'https://line.me/R/msg/text/?' + encodeURIComponent(msg);
-    window.open(url, '_blank');
-  },
-
-  async acceptFriend(requestId, fromUid) {
-    await Social.acceptRequest(requestId, fromUid);
-    this.renderFriendsLive();
-  },
-
-  async declineFriend(requestId) {
-    await Social.declineRequest(requestId);
-    this.renderFriendsLive();
+    todayEl.appendChild(section);
   },
 
   // --- Edit Workout ---
@@ -980,7 +940,7 @@ const App = {
     this.renderPlan();
     this.renderToday();
     this.renderMonthlyChart();
-    this.syncToCloud();
+    this.renderShare();
   },
 
   // --- Toggle Completion ---
@@ -995,7 +955,7 @@ const App = {
     this.renderPlan();
     this.renderToday();
     this.renderMonthlyChart();
-    this.syncToCloud();
+    this.renderShare();
   },
 
   // --- Complete Today ---
@@ -1010,7 +970,7 @@ const App = {
     this.renderToday();
     this.renderPlan();
     this.renderMonthlyChart();
-    this.syncToCloud();
+    this.renderShare();
   },
 
   // --- Completion Overlay ---
