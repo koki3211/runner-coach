@@ -1089,8 +1089,8 @@ const App = {
 
     // Recalculate week total
     this.state.plan[weekIdx].totalDist = Math.round(
-      this.state.plan[weekIdx].days.reduce((s, d) => s + d.dist, 0) * 10
-    ) / 10;
+      this.state.plan[weekIdx].days.reduce((s, d) => s + d.dist, 0)
+    );
 
     saveState(this.state);
     this.closeEditWorkout();
