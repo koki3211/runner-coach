@@ -200,6 +200,8 @@ function calcMonthlyData(plan, completed) {
 const App = {
   state: null,
 
+  _myShortId: null,
+
   init() {
     this.state = loadState();
     // Migrate old plan data: fix distances and type names
@@ -256,15 +258,62 @@ const App = {
     // Firebase
     if (typeof Social !== 'undefined') Social.init();
 
+    // Show login screen for first-time users (no plan, not logged in)
+    this._checkFirstTimeLogin();
+
     // Service Worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js').catch(() => {});
     }
+
+    // Initial avatar render (not logged in state)
+    this.updateAllAvatars(null);
+  },
+
+  _checkFirstTimeLogin() {
+    // Show login screen if: no plan exists AND user hasn't skipped login before
+    const skipped = localStorage.getItem('runner-coach-login-skipped');
+    if (!this.state || !this.state.plan) {
+      if (!skipped && typeof Social !== 'undefined' && Social.enabled) {
+        // Will be shown after Firebase init; handled in onAuthChanged
+        this._showLoginPending = true;
+      }
+    }
+  },
+
+  skipLogin() {
+    localStorage.setItem('runner-coach-login-skipped', '1');
+    document.getElementById('login-screen').classList.remove('show');
+    this.switchTab('goal', document.querySelector('[data-tab="goal"]'));
   },
 
   // --- Auth callback ---
-  onAuthChanged(user) {
-    this.renderAuthUI(user);
+  async onAuthChanged(user) {
+    // Handle first-time login screen
+    const loginScreen = document.getElementById('login-screen');
+    if (user) {
+      // User logged in — hide login screen
+      loginScreen.classList.remove('show');
+      // If they had no plan, go to goal
+      if (!this.state || !this.state.plan) {
+        this.switchTab('goal', document.querySelector('[data-tab="goal"]'));
+      }
+    } else if (this._showLoginPending) {
+      // First-time user, no plan, show login screen
+      loginScreen.classList.add('show');
+      this._showLoginPending = false;
+    }
+
+    // Update all avatar buttons
+    this.updateAllAvatars(user);
+
+    // Fetch short ID for popup
+    if (user && typeof Social !== 'undefined' && Social.enabled) {
+      this._myShortId = await Social.getOrCreateUserId();
+    } else {
+      this._myShortId = null;
+    }
+
     this.renderFriends();
     // Sync to cloud
     if (user && this.state && this.state.plan) {
@@ -272,42 +321,70 @@ const App = {
     }
   },
 
-  renderAuthUI(user, myId) {
-    const el = document.getElementById('auth-section');
-    if (!el) return;
-    if (!Social.enabled) {
-      el.innerHTML = '<div class="card mx" style="text-align:center;padding:var(--space-lg)"><div style="font-size:32px;margin-bottom:var(--space-sm)">\u{1F512}</div><div class="text-sm text-secondary">Firebase\u304c\u672a\u8a2d\u5b9a\u3067\u3059\u3002<br>firebase-config.js \u306b\u8a2d\u5b9a\u3092\u8ffd\u52a0\u3059\u308b\u3068<br>Google\u30ed\u30b0\u30a4\u30f3\u3067\u4ef2\u9593\u3068\u3064\u306a\u304c\u308c\u307e\u3059\u3002</div></div>';
+  updateAllAvatars(user) {
+    const btns = document.querySelectorAll('.nav-avatar-btn');
+    btns.forEach(btn => {
+      if (user && user.photoURL) {
+        btn.innerHTML = '<img src="' + escapeHtml(user.photoURL) + '" alt="">';
+      } else if (user && user.displayName) {
+        btn.innerHTML = '<span class="avatar-initial" style="background:var(--color-brand-primary);width:100%;height:100%;display:flex;align-items:center;justify-content:center;border-radius:50%;color:#fff">' + escapeHtml(user.displayName[0]) + '</span>';
+      } else {
+        // Not logged in — show generic person icon
+        btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="var(--color-label-secondary)"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>';
+      }
+    });
+  },
+
+  toggleAccountPopup() {
+    const popup = document.getElementById('account-popup');
+    const backdrop = document.getElementById('account-popup-backdrop');
+    if (popup.classList.contains('show')) {
+      this.closeAccountPopup();
+    } else {
+      this._renderAccountPopup();
+      popup.classList.add('show');
+      backdrop.classList.add('show');
+    }
+  },
+
+  closeAccountPopup() {
+    document.getElementById('account-popup').classList.remove('show');
+    document.getElementById('account-popup-backdrop').classList.remove('show');
+  },
+
+  _renderAccountPopup() {
+    const popup = document.getElementById('account-popup');
+    const user = (typeof Social !== 'undefined') ? Social.currentUser : null;
+
+    if (!user) {
+      popup.innerHTML =
+        '<div style="text-align:center;padding:var(--space-md)">' +
+          '<div style="font-size:32px;margin-bottom:var(--space-sm)">👤</div>' +
+          '<div style="font-weight:var(--font-weight-semibold);margin-bottom:var(--space-sm)">ログインしていません</div>' +
+          '<div class="text-sm text-secondary" style="margin-bottom:var(--space-base)">Googleログインで仲間とつながれます</div>' +
+          '<button class="login-btn" onclick="Social.login();App.closeAccountPopup()">' +
+            '<svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>' +
+            'Googleでログイン</button>' +
+        '</div>';
       return;
     }
-    if (user) {
-      const photo = user.photoURL
-        ? `<img src="${escapeHtml(user.photoURL)}" style="width:40px;height:40px;border-radius:50%">`
-        : `<div class="friend-avatar" style="background:var(--color-brand-primary);width:40px;height:40px;font-size:16px">${escapeHtml((user.displayName || 'U')[0])}</div>`;
-      const idRow = myId
-        ? `<div class="my-id-row"><span>\u3042\u306a\u305f\u306eID</span><span class="my-id-value" onclick="navigator.clipboard.writeText('${escapeHtml(myId)}')">${escapeHtml(myId)}</span><button class="my-id-copy" onclick="navigator.clipboard.writeText('${escapeHtml(myId)}')">\u30b3\u30d4\u30fc</button></div>`
-        : '';
-      el.innerHTML = `<div class="card mx account-card">
-        <div style="display:flex;align-items:flex-start;gap:var(--space-md)">
-          ${photo}
-          <div style="flex:1;min-width:0">
-            <div style="font-weight:var(--font-weight-semibold)">${escapeHtml(user.displayName || '')}</div>
-            <div class="text-sm text-secondary">${escapeHtml(user.email || '')}</div>
-          </div>
-          <button class="small-btn danger" onclick="Social.logout()">\u30ed\u30b0\u30a2\u30a6\u30c8</button>
-        </div>
-        ${idRow}
-      </div>`;
-    } else {
-      el.innerHTML = `<div class="card mx" style="text-align:center;padding:var(--space-lg)">
-        <div style="font-size:32px;margin-bottom:var(--space-sm)">\u{1F465}</div>
-        <div style="font-weight:var(--font-weight-semibold);margin-bottom:var(--space-sm)">\u4ef2\u9593\u3068\u3064\u306a\u304c\u308d\u3046</div>
-        <div class="text-sm text-secondary" style="margin-bottom:var(--space-base)">Google\u30ed\u30b0\u30a4\u30f3\u3067\u53cb\u9054\u306e\u30c8\u30ec\u30fc\u30cb\u30f3\u30b0\u304c\u898b\u3048\u308b\u3088\u3046\u306b</div>
-        <button class="login-btn" onclick="Social.login()">
-          <svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-          Google\u3067\u30ed\u30b0\u30a4\u30f3
-        </button>
-      </div>`;
-    }
+
+    const avatarHTML = user.photoURL
+      ? '<div class="account-popup-avatar"><img src="' + escapeHtml(user.photoURL) + '" alt=""></div>'
+      : '<div class="account-popup-avatar-placeholder">' + escapeHtml((user.displayName || 'U')[0]) + '</div>';
+
+    const idHTML = this._myShortId
+      ? '<div class="account-popup-id"><span>あなたのID</span><span class="id-value">' + escapeHtml(this._myShortId) + '</span><button class="id-copy-small" onclick="navigator.clipboard.writeText(\'' + escapeHtml(this._myShortId) + '\');this.textContent=\'✓\';setTimeout(()=>this.textContent=\'コピー\',1500)">コピー</button></div>'
+      : '';
+
+    popup.innerHTML =
+      '<div class="account-popup-header">' + avatarHTML +
+        '<div><div class="account-popup-name">' + escapeHtml(user.displayName || '') + '</div>' +
+        '<div class="account-popup-email">' + escapeHtml(user.email || '') + '</div></div>' +
+      '</div>' + idHTML +
+      '<div class="account-popup-actions">' +
+        '<button class="account-popup-logout" onclick="Social.logout();App.closeAccountPopup()">ログアウト</button>' +
+      '</div>';
   },
 
   // --- Tab Switching ---
@@ -545,7 +622,29 @@ const App = {
         ? '<button class="start-btn completed-btn">\u2713 完了済み</button>'
         : '<button class="start-btn" onclick="App.completeToday()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>トレーニング完了</button>';
 
-    document.getElementById('today-content').innerHTML =
+    // Race countdown
+    let countdownHTML = '';
+    if (this.state.raceDate) {
+      const raceD = fromISO(this.state.raceDate);
+      const todayD = new Date(); todayD.setHours(0,0,0,0);
+      const diffMs = raceD - todayD;
+      const daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      if (daysLeft > 0) {
+        countdownHTML = '<div class="race-countdown">' +
+          '<span class="race-countdown-icon">🏁</span>' +
+          '<span class="race-countdown-text">' + escapeHtml(this.state.raceName) + 'まで</span>' +
+          '<span class="race-countdown-days">あと ' + daysLeft + '日</span>' +
+        '</div>';
+      } else if (daysLeft === 0) {
+        countdownHTML = '<div class="race-countdown">' +
+          '<span class="race-countdown-icon">🎉</span>' +
+          '<span class="race-countdown-text">' + escapeHtml(this.state.raceName) + '</span>' +
+          '<span class="race-countdown-days">今日が本番!</span>' +
+        '</div>';
+      }
+    }
+
+    document.getElementById('today-content').innerHTML = countdownHTML +
       '<div class="today-hero type-' + w.type + '">' +
         '<div class="workout-type">' + (TYPE_JA[w.type] || w.type) + '</div>' +
         '<div class="workout-name">' + escapeHtml(w.name) + '</div>' +
@@ -678,33 +777,37 @@ const App = {
 
     // Not configured
     if (typeof Social === 'undefined' || !Social.enabled) {
-      container.innerHTML = '<div id="auth-section"></div>' + selfCardHTML +
+      container.innerHTML = selfCardHTML +
         '<div class="empty-state"><div class="empty-icon">\u{1F465}</div>' +
         '<div class="empty-text">Firebase\u3092\u8a2d\u5b9a\u3059\u308b\u3068<br>\u4ef2\u9593\u306e\u30c8\u30ec\u30fc\u30cb\u30f3\u30b0\u304c\u898b\u3048\u307e\u3059</div></div>';
-      this.renderAuthUI(null);
       return;
     }
 
     // Not logged in
     if (!Social.currentUser) {
-      container.innerHTML = '<div id="auth-section"></div>' + selfCardHTML;
-      this.renderAuthUI(null);
+      container.innerHTML =
+        '<div class="card mx" style="text-align:center;padding:var(--space-lg)">' +
+          '<div style="font-size:32px;margin-bottom:var(--space-sm)">👥</div>' +
+          '<div style="font-weight:var(--font-weight-semibold);margin-bottom:var(--space-sm)">仲間とつながろう</div>' +
+          '<div class="text-sm text-secondary" style="margin-bottom:var(--space-base)">Googleログインで友達のトレーニングが見えるように</div>' +
+          '<button class="login-btn" onclick="Social.login()">' +
+            '<svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>' +
+            'Googleでログイン</button>' +
+        '</div>' + selfCardHTML;
       return;
     }
 
-    // Get my short ID
-    const myId = await Social.getOrCreateUserId();
-
-    container.innerHTML = '<div id="auth-section"></div>' + selfCardHTML +
+    // Logged in — show: friend search → self card → friends list
+    const searchHTML =
       '<div class="section" style="padding-bottom:0"><div class="section-header">友達を追加</div>' +
       '<div class="card"><div class="friend-add-row">' +
       '<input type="text" id="friend-id-input" placeholder="友達のIDを入力" class="form-input" style="flex:1" maxlength="8">' +
       '<button class="cta-btn" style="width:auto;margin:0;padding:var(--space-sm) var(--space-base);font-size:var(--font-size-subhead)" onclick="App.addFriend()">検索</button>' +
-      '</div></div></div>' +
+      '</div></div></div>';
+
+    container.innerHTML = searchHTML + selfCardHTML +
       '<div id="friend-requests"></div>' +
       '<div id="friends-list"><div class="empty-state"><div class="empty-icon">\u{23F3}</div><div class="empty-text">読み込み中...</div></div></div>';
-
-    this.renderAuthUI(Social.currentUser, myId);
 
     // Load incoming requests
     const requests = await Social.getIncomingRequests();
