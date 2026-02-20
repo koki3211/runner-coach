@@ -123,9 +123,8 @@ function generatePlanData(raceName, raceDate, raceType, targetTime) {
     const longDist = roundKm((longBase + w * 1.2) * scale * paceScale * taperFactor * volMult);
 
     const intv = INTERVALS[w % INTERVALS.length];
-    // Interval distance = warmup 2km + reps distance + cooldown 2km
-    const repsDist = parseRepsDist(intv.reps);
-    const intervalDist = roundKm(2 + repsDist + 2);
+    // Interval distance = reps distance only (e.g. 400m×8 = 3.2km)
+    const intervalDist = parseRepsDist(intv.reps);
     const weekStart = addDays(startMonday, w * 7);
 
     const days = [
@@ -158,6 +157,15 @@ function generatePlanData(raceName, raceDate, raceType, targetTime) {
 }
 
 function roundKm(n) { return Math.round(n); }
+
+// Format distance: intervals show 1 decimal (e.g. 3.2), others show integer
+function formatDist(dist, type) {
+  if (type === 'interval') {
+    const d = Math.round(dist * 10) / 10;
+    return d % 1 === 0 ? String(d) : d.toFixed(1);
+  }
+  return String(Math.round(dist));
+}
 
 // Parse reps string like "800m × 5" → total km (e.g. 4.0)
 function parseRepsDist(repsStr) {
@@ -199,16 +207,16 @@ const App = {
       let migrated = false;
       for (const week of this.state.plan) {
         for (const day of week.days) {
-          // Recalculate interval distances: warmup 2km + reps + cooldown 2km
+          // Recalculate interval distances: reps distance only
           if (day.type === 'interval' && day.detail) {
-            const correctDist = roundKm(2 + parseRepsDist(day.detail.reps) + 2);
+            const correctDist = parseRepsDist(day.detail.reps);
             if (day.dist !== correctDist) {
               day.dist = correctDist;
               migrated = true;
             }
           }
-          // Ensure all distances are integers
-          if (day.dist !== Math.round(day.dist)) {
+          // Ensure non-interval distances are integers
+          if (day.type !== 'interval' && day.dist !== Math.round(day.dist)) {
             day.dist = Math.round(day.dist);
             migrated = true;
           }
@@ -323,7 +331,7 @@ const App = {
     if (dateInput && s.raceDate) dateInput.value = s.raceDate;
     if (s.raceType) {
       document.querySelectorAll('.segment').forEach(seg => {
-        seg.classList.toggle('selected', seg.dataset.value === s.raceType);
+        seg.classList.toggle('active', seg.dataset.value === s.raceType);
       });
     }
     if (s.targetTime) {
@@ -334,15 +342,15 @@ const App = {
   },
 
   selectRaceType(el) {
-    el.parentElement.querySelectorAll('.segment').forEach(s => s.classList.remove('selected'));
-    el.classList.add('selected');
+    el.parentElement.querySelectorAll('.segment').forEach(s => s.classList.remove('active'));
+    el.classList.add('active');
   },
 
   // --- Generate Plan ---
   generatePlan() {
     const raceName = document.getElementById('input-race-name').value.trim();
     const raceDate = document.getElementById('input-race-date').value;
-    const raceTypeSeg = document.querySelector('.segment.selected');
+    const raceTypeSeg = document.querySelector('.segment.active');
     const raceType = raceTypeSeg ? raceTypeSeg.dataset.value : 'full';
     const h = document.getElementById('input-time-h').value;
     const m = document.getElementById('input-time-m').value;
@@ -513,7 +521,7 @@ const App = {
         '<div class="bar-label">' + m.label + '</div></div>';
     }).join('');
 
-    const heroDetail = w.dist > 0 ? '合計 ' + Math.round(w.dist) + 'km・推定 ' + estimateTime(w.dist, w.pace) : '休養日';
+    const heroDetail = w.dist > 0 ? '合計 ' + formatDist(w.dist, w.type) + 'km・推定 ' + estimateTime(w.dist, w.pace) : '休養日';
 
     const btnHTML = w.type === 'rest' ? ''
       : done
@@ -565,13 +573,16 @@ const App = {
 
       for (const day of week.days) {
         const done = this.isCompleted(day.date);
-        const distLabel = day.dist > 0 ? Math.round(day.dist) + 'km' : '\u2014';
-        html += '<li class="plan-item">' +
+        const distLabel = day.dist > 0 ? formatDist(day.dist, day.type) + 'km' : '\u2014';
+        const d = fromISO(day.date);
+        const dateLabel = (d.getMonth() + 1) + '/' + d.getDate();
+        html += '<li class="plan-item" onclick="App.openEditWorkout(\'' + day.date + '\')">' +
           '<span class="plan-dot" style="background:' + TYPE_COLORS[day.type] + '"></span>' +
           '<span class="plan-day">' + day.dayJa + '</span>' +
+          '<span class="plan-date">' + dateLabel + '</span>' +
           '<span class="plan-name">' + escapeHtml(day.name) + '</span>' +
           '<span class="plan-dist">' + distLabel + '</span>' +
-          '<span class="plan-check' + (done ? ' done' : '') + '" onclick="App.toggleComplete(\'' + day.date + '\')"></span></li>';
+          '<span class="plan-check' + (done ? ' done' : '') + '" onclick="event.stopPropagation();App.toggleComplete(\'' + day.date + '\')"></span></li>';
       }
       html += '</ul></div>';
     }
@@ -717,6 +728,81 @@ const App = {
   async declineFriend(reqId) {
     await Social.declineRequest(reqId);
     this.renderFriends();
+  },
+
+  // --- Edit Workout ---
+  openEditWorkout(dateStr) {
+    if (!this.state || !this.state.plan) return;
+    let targetDay = null;
+    for (const week of this.state.plan) {
+      for (const day of week.days) {
+        if (day.date === dateStr) { targetDay = day; break; }
+      }
+      if (targetDay) break;
+    }
+    if (!targetDay) return;
+
+    const typeOptions = Object.keys(TYPE_JA).map(t =>
+      '<option value="' + t + '"' + (t === targetDay.type ? ' selected' : '') + '>' + TYPE_JA[t] + '</option>'
+    ).join('');
+
+    const dd = fromISO(dateStr);
+    const distVal = targetDay.type === 'interval' ? formatDist(targetDay.dist, 'interval') : Math.round(targetDay.dist);
+    const stepVal = targetDay.type === 'interval' ? '0.1' : '1';
+
+    const overlay = document.getElementById('edit-overlay');
+    overlay.innerHTML =
+      '<div class="edit-backdrop" onclick="App.closeEditWorkout()"></div>' +
+      '<div class="edit-sheet">' +
+        '<div class="edit-sheet-handle"></div>' +
+        '<div class="edit-sheet-title">' + targetDay.dayJa + ' ' + (dd.getMonth() + 1) + '/' + dd.getDate() + ' のメニュー</div>' +
+        '<div class="edit-field"><label class="form-label">種類</label>' +
+          '<select id="edit-type" class="form-input edit-select">' + typeOptions + '</select></div>' +
+        '<div class="edit-field"><label class="form-label">距離 (km)</label>' +
+          '<input type="number" id="edit-dist" class="form-input" value="' + distVal + '" min="0" step="' + stepVal + '"></div>' +
+        '<div class="edit-field"><label class="form-label">メモ</label>' +
+          '<input type="text" id="edit-name" class="form-input" value="' + escapeHtml(targetDay.name) + '"></div>' +
+        '<div class="edit-actions">' +
+          '<button class="edit-cancel-btn" onclick="App.closeEditWorkout()">キャンセル</button>' +
+          '<button class="cta-btn edit-save-btn" onclick="App.saveEditWorkout(\'' + dateStr + '\')">保存</button>' +
+        '</div>' +
+      '</div>';
+    overlay.classList.add('show');
+  },
+
+  closeEditWorkout() {
+    document.getElementById('edit-overlay').classList.remove('show');
+  },
+
+  saveEditWorkout(dateStr) {
+    const newType = document.getElementById('edit-type').value;
+    const rawDist = parseFloat(document.getElementById('edit-dist').value) || 0;
+    const newDist = newType === 'interval' ? Math.round(rawDist * 10) / 10 : Math.round(rawDist);
+    const newName = document.getElementById('edit-name').value.trim();
+
+    for (const week of this.state.plan) {
+      for (const day of week.days) {
+        if (day.date === dateStr) {
+          day.type = newType;
+          day.dist = newDist;
+          day.name = newName || TYPE_JA[newType] || newType;
+          if (this.state.paces && this.state.paces[newType]) {
+            day.pace = this.state.paces[newType];
+          }
+          break;
+        }
+      }
+      // Recalc week total
+      const hasDay = week.days.find(d => d.date === dateStr);
+      if (hasDay) {
+        week.totalDist = roundKm(week.days.reduce((s, d) => s + d.dist, 0));
+      }
+    }
+    saveState(this.state);
+    this.closeEditWorkout();
+    this.renderPlan();
+    this.renderToday();
+    if (typeof Social !== 'undefined' && Social.enabled) Social.syncToCloud(this.state);
   },
 
   // --- Toggle Completion ---

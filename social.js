@@ -21,11 +21,6 @@ const Social = {
       this.db = firebase.firestore();
       this.enabled = true;
 
-      // Handle redirect result from Google login
-      this.auth.getRedirectResult().catch(e => {
-        console.error('Redirect login error:', e);
-      });
-
       this.auth.onAuthStateChanged(user => {
         this.currentUser = user;
         App.onAuthChanged(user);
@@ -37,10 +32,24 @@ const Social = {
   },
 
   // --- Auth ---
-  login() {
-    if (!this.enabled) return;
-    const provider = new firebase.auth.GoogleAuthProvider();
-    this.auth.signInWithRedirect(provider);
+  async login() {
+    if (!this.enabled) return null;
+    try {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      const result = await this.auth.signInWithPopup(provider);
+      return result.user;
+    } catch (e) {
+      if (e.code === 'auth/popup-blocked') {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        this.auth.signInWithRedirect(provider);
+      } else if (e.code === 'auth/unauthorized-domain') {
+        alert('このドメインはFirebaseで許可されていません。\nFirebase Console → Authentication → Settings → Authorized domains に「' + location.hostname + '」を追加してください。');
+      } else if (e.code !== 'auth/popup-closed-by-user') {
+        console.error('Login error:', e);
+        alert('ログインエラー: ' + e.message);
+      }
+      return null;
+    }
   },
 
   async logout() {
