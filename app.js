@@ -53,7 +53,7 @@ function getMonday(d) {
 }
 
 // --- Pace Calculation ---
-// Parse "H:MM:SS" or "M:SS" target time into total seconds
+// Parse "H:MM" or "H:MM:SS" target time into total seconds (legacy support)
 function parseTargetTime(str) {
   const parts = str.trim().split(':').map(Number);
   if (parts.some(isNaN)) return null;
@@ -322,6 +322,10 @@ const App = {
     const raceDate = s.raceDate || '';
     const raceType = s.raceType || 'full';
     const targetTime = s.targetTime || '';
+    // Parse stored targetTime "H:MM" into hours and minutes
+    const timeParts = targetTime.split(':');
+    const storedHours = timeParts.length >= 2 ? timeParts[0] : '';
+    const storedMinutes = timeParts.length >= 2 ? timeParts[1] : '';
 
     el.innerHTML = `
       <div class="form-group">
@@ -340,16 +344,20 @@ const App = {
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label" for="input-target-time">目標タイム</label>
-        <input class="form-input" id="input-target-time" type="text" placeholder="例: 3:30:00" value="${escapeHtml(targetTime)}" inputmode="numeric">
+        <label class="form-label">目標タイム</label>
+        <div class="time-input-group">
+          <input class="form-input time-input" id="input-target-hours" type="number" inputmode="numeric" min="0" max="9" placeholder="3" value="${escapeHtml(storedHours)}">
+          <span class="time-separator">時間</span>
+          <input class="form-input time-input" id="input-target-minutes" type="number" inputmode="numeric" min="0" max="59" placeholder="30" value="${escapeHtml(storedMinutes)}">
+          <span class="time-separator">分</span>
+        </div>
         <div class="form-hint" id="pace-preview"></div>
       </div>`;
 
     // Live pace preview
-    const timeInput = document.getElementById('input-target-time');
-    const typeBtn = document.querySelector('.form-toggle.active');
     this._raceType = raceType;
-    timeInput.addEventListener('input', () => this.updatePacePreview());
+    document.getElementById('input-target-hours').addEventListener('input', () => this.updatePacePreview());
+    document.getElementById('input-target-minutes').addEventListener('input', () => this.updatePacePreview());
     this.updatePacePreview();
   },
 
@@ -363,11 +371,15 @@ const App = {
   },
 
   updatePacePreview() {
-    const timeInput = document.getElementById('input-target-time');
+    const hoursInput = document.getElementById('input-target-hours');
+    const minutesInput = document.getElementById('input-target-minutes');
     const preview = document.getElementById('pace-preview');
-    if (!timeInput || !preview) return;
+    if (!hoursInput || !minutesInput || !preview) return;
 
-    const sec = parseTargetTime(timeInput.value);
+    const h = parseInt(hoursInput.value, 10);
+    const m = parseInt(minutesInput.value, 10);
+    if (isNaN(h) && isNaN(m)) { preview.textContent = ''; return; }
+    const sec = (h || 0) * 3600 + (m || 0) * 60;
     if (!sec) {
       preview.textContent = '';
       return;
@@ -382,14 +394,20 @@ const App = {
   generatePlan() {
     const raceName = (document.getElementById('input-race-name').value || '').trim();
     const raceDate = (document.getElementById('input-race-date').value || '').trim();
-    const targetTime = (document.getElementById('input-target-time').value || '').trim();
+    const targetHours = (document.getElementById('input-target-hours').value || '').trim();
+    const targetMinutes = (document.getElementById('input-target-minutes').value || '').trim();
     const raceType = this._raceType;
 
     // Validation
     if (!raceName) { alert('大会名を入力してください'); return; }
     if (!raceDate) { alert('大会日を選択してください'); return; }
-    const targetSec = parseTargetTime(targetTime);
-    if (!targetSec) { alert('目標タイムを H:MM:SS 形式で入力してください（例: 3:30:00）'); return; }
+    const h = parseInt(targetHours, 10);
+    const m = parseInt(targetMinutes, 10);
+    if ((isNaN(h) && isNaN(m)) || ((h || 0) === 0 && (m || 0) === 0)) {
+      alert('目標タイムを入力してください'); return;
+    }
+    const targetSec = (h || 0) * 3600 + (m || 0) * 60;
+    const targetTime = (h || 0) + ':' + String(m || 0).padStart(2, '0');
 
     const paces = calcPaces(targetSec, raceType);
     const dist = RACE_DISTANCES[raceType];
