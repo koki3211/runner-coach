@@ -325,6 +325,21 @@
       border-color: var(--color-brand-primary); background: rgba(0,122,255,0.08);
       color: var(--color-brand-primary);
     }
+    .time-input-group {
+      display: flex; align-items: center; gap: var(--space-sm);
+    }
+    .time-input-group .time-input {
+      width: 72px; text-align: center; flex: none;
+      -moz-appearance: textfield;
+    }
+    .time-input-group .time-input::-webkit-outer-spin-button,
+    .time-input-group .time-input::-webkit-inner-spin-button {
+      -webkit-appearance: none; margin: 0;
+    }
+    .time-separator {
+      font-size: var(--font-size-subhead); color: var(--color-label-secondary);
+      font-weight: var(--font-weight-semibold);
+    }
     .form-hint {
       font-size: var(--font-size-caption1); color: var(--color-brand-primary);
       margin-top: var(--space-sm); min-height: 1.6em; line-height: 1.4;
