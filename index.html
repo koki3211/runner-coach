@@ -183,6 +183,60 @@
     .bar-label { font-size: var(--font-size-caption2); color: var(--color-label-secondary); }
     .bar-value { font-family: var(--font-family-data); font-size: var(--font-size-caption2); color: var(--color-label-secondary); }
 
+    /* Pace Grid */
+    .pace-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-md);
+    }
+    .pace-item { text-align: center; }
+    .pace-item .pace-label {
+      font-size: var(--font-size-caption2); color: var(--color-label-secondary);
+      text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: var(--space-2xs);
+    }
+    .pace-item .pace-value {
+      font-family: var(--font-family-data); font-size: var(--font-size-headline);
+      font-weight: var(--font-weight-semibold); color: var(--color-brand-primary);
+    }
+
+    /* Monthly Chart */
+    .monthly-chart {
+      display: flex; align-items: flex-end; gap: var(--space-md);
+      height: 160px; padding: var(--space-base) 0;
+    }
+    .monthly-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: var(--space-xs); }
+    .monthly-values { text-align: center; line-height: 1.2; }
+    .monthly-val-done {
+      font-family: var(--font-family-data); font-size: var(--font-size-caption1);
+      font-weight: var(--font-weight-bold); color: var(--color-brand-primary);
+    }
+    .monthly-val-plan {
+      font-family: var(--font-family-data); font-size: var(--font-size-caption2);
+      color: var(--color-label-tertiary);
+    }
+    .monthly-bar-wrap {
+      width: 100%; max-width: 40px; position: relative;
+      border-radius: var(--radius-sm) var(--radius-sm) 0 0; overflow: hidden;
+    }
+    .monthly-bar-planned {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: var(--color-fill-tertiary); border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    }
+    .monthly-bar-done {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: var(--color-brand-primary); border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+      transition: height var(--duration-normal) var(--easing-spring);
+    }
+    .monthly-label { font-size: var(--font-size-caption2); color: var(--color-label-secondary); }
+    .monthly-legend {
+      display: flex; justify-content: center; gap: var(--space-lg);
+      margin-top: var(--space-sm); font-size: var(--font-size-caption1); color: var(--color-label-secondary);
+    }
+    .legend-item { display: flex; align-items: center; gap: var(--space-xs); }
+    .legend-dot {
+      width: 10px; height: 10px; border-radius: 2px;
+    }
+    .legend-dot.done { background: var(--color-brand-primary); }
+    .legend-dot.planned { background: var(--color-fill-tertiary); }
+
     /* Plan Screen */
     .plan-week { margin-bottom: var(--space-lg); }
     .plan-week-header {
@@ -241,20 +295,41 @@
     .friend-week { display: flex; gap: 3px; margin-top: var(--space-sm); }
     .friend-week-dot { width: 8px; height: 8px; border-radius: 2px; background: var(--color-fill-tertiary); }
     .friend-week-dot.done { background: var(--color-success); }
-    .friend-week-dot.planned { background: var(--color-fill-primary); }
 
-    /* Goal Screen */
-    .goal-option {
-      padding: var(--space-base); background: var(--color-bg-primary);
-      border: 2px solid var(--color-separator-opaque); border-radius: var(--radius-lg);
-      margin: 0 var(--space-base) var(--space-md); cursor: pointer;
-      transition: all var(--duration-fast) var(--easing-default);
+    /* Goal Screen — Custom Form */
+    .form-group { margin: 0 var(--space-base) var(--space-lg); }
+    .form-label {
+      display: block; font-size: var(--font-size-subhead); font-weight: var(--font-weight-semibold);
+      color: var(--color-label-secondary); margin-bottom: var(--space-sm);
     }
-    .goal-option:active { transform: scale(0.98); }
-    .goal-option.selected { border-color: var(--color-brand-primary); background: rgba(0,122,255,0.05); }
-    .goal-option .goal-emoji { font-size: 28px; margin-bottom: var(--space-sm); }
-    .goal-option .goal-title { font-size: var(--font-size-headline); font-weight: var(--font-weight-semibold); }
-    .goal-option .goal-desc { font-size: var(--font-size-footnote); color: var(--color-label-secondary); margin-top: var(--space-2xs); }
+    .form-input {
+      width: 100%; padding: var(--space-md); font-size: var(--font-size-body);
+      font-family: var(--font-family-body); color: var(--color-label-primary);
+      background: var(--color-bg-primary); border: 1.5px solid var(--color-separator-opaque);
+      border-radius: var(--radius-md); outline: none;
+      transition: border-color var(--duration-fast);
+    }
+    .form-input:focus { border-color: var(--color-brand-primary); }
+    .form-input::placeholder { color: var(--color-label-tertiary); }
+    .form-toggle-group { display: flex; gap: var(--space-sm); }
+    .form-toggle {
+      flex: 1; padding: var(--space-md); text-align: center;
+      font-size: var(--font-size-subhead); font-weight: var(--font-weight-semibold);
+      font-family: var(--font-family-body);
+      background: var(--color-bg-primary); border: 1.5px solid var(--color-separator-opaque);
+      border-radius: var(--radius-md); cursor: pointer;
+      color: var(--color-label-secondary);
+      transition: all var(--duration-fast);
+    }
+    .form-toggle.active {
+      border-color: var(--color-brand-primary); background: rgba(0,122,255,0.08);
+      color: var(--color-brand-primary);
+    }
+    .form-hint {
+      font-size: var(--font-size-caption1); color: var(--color-brand-primary);
+      margin-top: var(--space-sm); min-height: 1.6em; line-height: 1.4;
+    }
+
     .cta-btn {
       display: block; width: calc(100% - var(--space-base) * 2);
       margin: var(--space-lg) auto; padding: var(--space-base);
@@ -265,6 +340,42 @@
     }
     .cta-btn:active { transform: scale(0.97); }
     .cta-btn:disabled { opacity: 0.4; cursor: default; }
+
+    /* Auth UI */
+    .auth-area { padding: var(--space-base); }
+    .auth-logged-in {
+      display: flex; align-items: center; gap: var(--space-md);
+      padding: var(--space-base); background: var(--color-bg-primary);
+      border-radius: var(--radius-lg); box-shadow: var(--shadow-card);
+    }
+    .auth-avatar { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; }
+    .auth-avatar-placeholder {
+      width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+      background: var(--color-brand-primary); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: var(--font-size-headline); font-weight: var(--font-weight-bold);
+    }
+    .auth-info { flex: 1; }
+    .auth-name { font-size: var(--font-size-subhead); font-weight: var(--font-weight-semibold); }
+    .auth-link {
+      font-size: var(--font-size-caption1); color: var(--color-brand-primary);
+      background: none; border: none; cursor: pointer; font-family: var(--font-family-body);
+      padding: 0; margin-top: 2px;
+    }
+    .auth-offline {
+      font-size: var(--font-size-footnote); color: var(--color-label-tertiary);
+      text-align: center; padding: var(--space-md);
+    }
+    .login-btn {
+      display: inline-flex; align-items: center; gap: var(--space-sm);
+      padding: var(--space-md) var(--space-xl);
+      background: var(--color-bg-primary); border: 1.5px solid var(--color-separator-opaque);
+      border-radius: var(--radius-full); cursor: pointer;
+      font-family: var(--font-family-body); font-size: var(--font-size-subhead);
+      font-weight: var(--font-weight-semibold); color: var(--color-label-primary);
+      transition: all var(--duration-fast);
+    }
+    .login-btn:active { transform: scale(0.97); background: var(--color-fill-tertiary); }
 
     /* Completion Overlay */
     .completion-overlay {
@@ -375,74 +486,31 @@
     <div class="subtitle" id="plan-subtitle"></div>
   </div>
   <div id="plan-content"></div>
+  <div id="monthly-content"></div>
 </div>
 
 <!-- SCREEN: FRIENDS -->
 <div id="screen-friends" class="screen">
   <div class="nav-bar">
     <h1>仲間</h1>
-    <div class="subtitle">みんなの今日のトレーニング</div>
+    <div class="subtitle">ランニング仲間とシェア</div>
   </div>
-  <div class="section">
-    <div class="friend-card">
-      <div class="friend-avatar" style="background:linear-gradient(135deg,#FF6B6B,#FF3B30)">T</div>
-      <div class="friend-info">
-        <div class="friend-name">田中 健太</div>
-        <div class="friend-goal">横浜マラソン・目標 3:15</div>
-        <div class="friend-today">10km テンポラン<span class="done-badge">完了!</span></div>
-        <div class="friend-week"><div class="friend-week-dot done"></div><div class="friend-week-dot done"></div><div class="friend-week-dot done"></div><div class="friend-week-dot planned"></div><div class="friend-week-dot planned"></div><div class="friend-week-dot planned"></div><div class="friend-week-dot planned"></div></div>
-      </div>
-      <div class="friend-streak"><div class="streak-num">12</div><div class="streak-label">日連続</div></div>
-    </div>
-    <div class="friend-card">
-      <div class="friend-avatar" style="background:linear-gradient(135deg,#5AC8FA,#007AFF)">S</div>
-      <div class="friend-info">
-        <div class="friend-name">鈴木 美咲</div>
-        <div class="friend-goal">東京マラソン・目標 4:00</div>
-        <div class="friend-today">6km イージーラン</div>
-        <div class="friend-week"><div class="friend-week-dot done"></div><div class="friend-week-dot done"></div><div class="friend-week-dot planned"></div><div class="friend-week-dot planned"></div><div class="friend-week-dot planned"></div><div class="friend-week-dot planned"></div><div class="friend-week-dot planned"></div></div>
-      </div>
-      <div class="friend-streak"><div class="streak-num">8</div><div class="streak-label">日連続</div></div>
-    </div>
-    <div class="friend-card">
-      <div class="friend-avatar" style="background:linear-gradient(135deg,#AF52DE,#5856D6)">Y</div>
-      <div class="friend-info">
-        <div class="friend-name">山本 大輝</div>
-        <div class="friend-goal">横浜マラソン・目標 3:45</div>
-        <div class="friend-today">レスト</div>
-        <div class="friend-week"><div class="friend-week-dot done"></div><div class="friend-week-dot"></div><div class="friend-week-dot planned"></div><div class="friend-week-dot planned"></div><div class="friend-week-dot planned"></div><div class="friend-week-dot planned"></div><div class="friend-week-dot planned"></div></div>
-      </div>
-      <div class="friend-streak"><div class="streak-num">3</div><div class="streak-label">日連続</div></div>
-    </div>
-    <div class="friend-card">
-      <div class="friend-avatar" style="background:linear-gradient(135deg,#34C759,#248A3D)">K</div>
-      <div class="friend-info">
-        <div class="friend-name">小林 翔</div>
-        <div class="friend-goal">横浜マラソン・目標 Sub-3</div>
-        <div class="friend-today">16km ロングラン<span class="done-badge">完了!</span></div>
-        <div class="friend-week"><div class="friend-week-dot done"></div><div class="friend-week-dot done"></div><div class="friend-week-dot done"></div><div class="friend-week-dot planned"></div><div class="friend-week-dot planned"></div><div class="friend-week-dot planned"></div><div class="friend-week-dot planned"></div></div>
-      </div>
-      <div class="friend-streak"><div class="streak-num">21</div><div class="streak-label">日連続</div></div>
-    </div>
-  </div>
+  <div id="auth-area" class="auth-area"></div>
+  <div id="friends-content"></div>
 </div>
 
 <!-- SCREEN: GOAL -->
 <div id="screen-goal" class="screen">
   <div class="nav-bar">
     <h1>目標設定</h1>
-    <div class="subtitle">大会と目標タイムを選択</div>
+    <div class="subtitle">大会と目標タイムを入力</div>
   </div>
   <div class="section">
-    <div class="section-header">大会を選択</div>
-    <div id="race-options"></div>
-  </div>
-  <div class="section" style="padding-top:0">
-    <div class="section-header">目標タイム</div>
-    <div id="target-options"></div>
+    <div class="section-header">あなたの目標</div>
+    <div id="goal-form-area"></div>
   </div>
   <button class="cta-btn" id="generate-btn" onclick="App.generatePlan()">プランを自動作成</button>
-  <div class="text-sm text-secondary" style="text-align:center;padding-bottom:var(--space-lg)">作成後、自由にカスタマイズできます</div>
+  <div class="text-sm text-secondary" style="text-align:center;padding-bottom:var(--space-lg)">目標タイムからペースを自動算出します</div>
 </div>
 
 <!-- COMPLETION OVERLAY -->
@@ -475,6 +543,12 @@
   </button>
 </nav>
 
+<!-- Firebase SDK (loaded only if config is set) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="social.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

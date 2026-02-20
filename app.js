@@ -1,26 +1,8 @@
 // ============================================================
-// Runner Coach — App Logic
+// Runner Coach v2 — App Logic
 // ============================================================
 
 // --- Constants ---
-const RACES = [
-  { id: 'yokohama2026', name: '横浜マラソン 2026', date: '2026-10-25', emoji: '\u{1F3C3}', desc: '2026年10月25日・フルマラソン' },
-  { id: 'tokyo2027', name: '東京マラソン 2027', date: '2027-03-07', emoji: '\u{1F5FC}', desc: '2027年3月7日・フルマラソン' },
-  { id: 'fuji2026', name: '富士山マラソン 2026', date: '2026-11-29', emoji: '\u{1F3D4}', desc: '2026年11月29日・フルマラソン' }
-];
-
-const TARGETS = [
-  { id: 'sub330', label: '3時間30分 (3:30:00)', pace: '4:58/km', seconds: 12600 },
-  { id: 'sub400', label: '4時間00分 (4:00:00)', pace: '5:41/km', seconds: 14400 },
-  { id: 'sub300', label: 'サブ3 (2:59:59)', pace: '4:15/km', seconds: 10799 }
-];
-
-const PACES = {
-  sub300: { easy: '4:45', tempo: '4:05', interval: '3:35', long: '5:00', recovery: '5:30' },
-  sub330: { easy: '5:30', tempo: '4:50', interval: '4:05', long: '5:45', recovery: '6:00' },
-  sub400: { easy: '6:15', tempo: '5:35', interval: '4:50', long: '6:30', recovery: '6:45' }
-};
-
 const DAYS_JA = ['月', '火', '水', '木', '金', '土', '日'];
 const DAYS_EN = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -54,6 +36,8 @@ const INTERVALS = [
   { reps: '400m × 6', rest: '200mジョグ' }
 ];
 
+const RACE_DISTANCES = { full: 42.195, half: 21.0975 };
+
 // --- Date Utilities ---
 function today() { return new Date(); }
 function toISO(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
@@ -67,7 +51,44 @@ function getMonday(d) {
   r.setHours(0,0,0,0);
   return r;
 }
-function sameDay(a, b) { return toISO(a) === toISO(b); }
+
+// --- Pace Calculation ---
+// Parse "H:MM:SS" or "M:SS" target time into total seconds
+function parseTargetTime(str) {
+  const parts = str.trim().split(':').map(Number);
+  if (parts.some(isNaN)) return null;
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  return null;
+}
+
+// Format seconds per km as "M:SS/km"
+function formatPace(secPerKm) {
+  const m = Math.floor(secPerKm / 60);
+  const s = Math.round(secPerKm % 60);
+  return m + ':' + String(s).padStart(2, '0') + '/km';
+}
+
+// Format pace for display without /km
+function formatPaceShort(secPerKm) {
+  const m = Math.floor(secPerKm / 60);
+  const s = Math.round(secPerKm % 60);
+  return m + ':' + String(s).padStart(2, '0');
+}
+
+// Calculate training paces from marathon/half target time
+function calcPaces(targetSeconds, raceType) {
+  const dist = RACE_DISTANCES[raceType] || 42.195;
+  const racePace = targetSeconds / dist; // sec/km
+
+  return {
+    easy:     formatPaceShort(racePace * 1.20),
+    tempo:    formatPaceShort(racePace * 0.95),
+    interval: formatPaceShort(racePace * 0.85),
+    long:     formatPaceShort(racePace * 1.10),
+    recovery: formatPaceShort(racePace * 1.28)
+  };
+}
 
 // --- Storage ---
 const STORE_KEY = 'runner-coach';
@@ -77,15 +98,18 @@ function loadState() {
 function saveState(s) { localStorage.setItem(STORE_KEY, JSON.stringify(s)); }
 
 // --- Plan Generation ---
-function generatePlanData(raceId, targetId) {
-  const paces = PACES[targetId];
+function generatePlanData(raceType, targetSeconds) {
+  const paces = calcPaces(targetSeconds, raceType);
+  const dist = RACE_DISTANCES[raceType] || 42.195;
   const totalWeeks = 12;
 
-  // Distances scale by target
-  const scale = targetId === 'sub300' ? 1.2 : targetId === 'sub330' ? 1.0 : 0.85;
+  // Scale distances by race type and speed
+  const racePaceSec = targetSeconds / dist;
+  // Faster runners (lower pace) get more volume
+  const scale = raceType === 'half' ? 0.75 : (racePaceSec < 270 ? 1.2 : racePaceSec < 330 ? 1.0 : 0.85);
 
   const weeks = [];
-  const monday = getMonday(addDays(today(), 1)); // Start next Monday (or this Monday if today is Mon)
+  const monday = getMonday(addDays(today(), 1));
 
   for (let w = 0; w < totalWeeks; w++) {
     let phase, phaseName;
@@ -94,11 +118,8 @@ function generatePlanData(raceId, targetId) {
     else if (w < 10) { phase = 'peak'; phaseName = 'ピーク期'; }
     else { phase = 'taper'; phaseName = 'テーパリング期'; }
 
-    // Recovery weeks: week 3 and 7 (0-indexed) reduce volume
     const isRecovery = (w === 3 || w === 7);
     const volMult = isRecovery ? 0.7 : 1.0;
-
-    // Progressive distances
     const progress = 1 + (w / totalWeeks) * 0.7;
     const taperFactor = phase === 'taper' ? 0.65 - (w - 10) * 0.1 : 1.0;
     const factor = progress * taperFactor * volMult;
@@ -132,42 +153,139 @@ function generatePlanData(raceId, targetId) {
     const totalDist = weekDays.reduce((s, d) => s + d.dist, 0);
 
     weeks.push({
-      weekNum: w + 1,
-      phase,
-      phaseName,
-      isRecovery,
+      weekNum: w + 1, phase, phaseName, isRecovery,
       startDate: toISO(weekStart),
       days: weekDays,
       totalDist: Math.round(totalDist * 10) / 10
     });
   }
-
   return weeks;
+}
+
+// --- Helpers ---
+function buildSteps(steps) {
+  return steps.map((s, i) =>
+    `<li>
+      <span class="step-index" style="background:${s.color}">${i + 1}</span>
+      <div class="step-info"><div class="step-label">${s.label}</div><div class="step-meta">${s.meta}</div></div>
+      <span class="step-pace">${s.pace}</span>
+    </li>`
+  ).join('');
+}
+
+function estimateTime(dist, paceStr) {
+  if (!paceStr || paceStr === '-' || dist === 0) return '—';
+  const parts = paceStr.replace('/km', '').split(':');
+  const paceMin = parseInt(parts[0]) + parseInt(parts[1]) / 60;
+  const totalMin = Math.round(dist * paceMin);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return h > 0 ? `${h}:${String(m).padStart(2, '0')}` : `${m}分`;
+}
+
+function launchConfetti() {
+  const container = document.getElementById('confetti-container');
+  container.innerHTML = '';
+  const colors = ['#007AFF','#34C759','#FF9500','#5856D6','#FF3B30','#FFCC00','#5AC8FA'];
+  for (let i = 0; i < 60; i++) {
+    const c = document.createElement('div');
+    c.classList.add('confetti');
+    c.style.left = Math.random() * 100 + '%';
+    c.style.background = colors[Math.floor(Math.random() * colors.length)];
+    c.style.width = (Math.random() * 8 + 4) + 'px';
+    c.style.height = (Math.random() * 8 + 4) + 'px';
+    c.style.animationDuration = (Math.random() * 2 + 1.5) + 's';
+    c.style.animationDelay = (Math.random() * 0.8) + 's';
+    if (Math.random() > 0.5) c.style.borderRadius = '50%';
+    container.appendChild(c);
+  }
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
 }
 
 // --- App ---
 const App = {
   state: null,
-  selectedRace: 'yokohama2026',
-  selectedTarget: 'sub330',
 
   init() {
     this.state = loadState();
-    this.renderGoalScreen();
 
     if (this.state && this.state.plan) {
+      this.renderGoalScreen();
       this.renderToday();
       this.renderPlan();
+      this.renderMonthlyChart();
     } else {
+      this.renderGoalScreen();
       this.showEmptyState();
-      // On first load, go to goal tab
       this.switchTab('goal', document.querySelector('[data-tab="goal"]'));
+    }
+
+    // Init Firebase Social
+    if (typeof Social !== 'undefined') {
+      Social.init();
+    } else {
+      this.renderFriendsOffline();
     }
 
     // Register service worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js').catch(() => {});
     }
+  },
+
+  // --- Auth callback from Social ---
+  onAuthChanged(user) {
+    this.renderAuthUI(user);
+    if (user) {
+      this.syncToCloud();
+      this.renderFriendsLive();
+    } else {
+      this.renderFriendsOffline();
+    }
+  },
+
+  renderAuthUI(user) {
+    const el = document.getElementById('auth-area');
+    if (!el) return;
+    if (user) {
+      const photo = user.photoURL
+        ? `<img class="auth-avatar" src="${escapeHtml(user.photoURL)}" alt="">`
+        : `<div class="auth-avatar-placeholder">${escapeHtml((user.displayName || 'U')[0])}</div>`;
+      el.innerHTML = `<div class="auth-logged-in">
+        ${photo}
+        <div class="auth-info">
+          <div class="auth-name">${escapeHtml(user.displayName || user.email)}</div>
+          <button class="auth-link" onclick="App.doLogout()">ログアウト</button>
+        </div>
+      </div>`;
+    } else {
+      const enabled = typeof Social !== 'undefined' && Social.enabled;
+      el.innerHTML = enabled
+        ? `<button class="login-btn" onclick="App.doLogin()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
+            Googleでログイン</button>`
+        : `<div class="auth-offline">オフラインモード</div>`;
+    }
+  },
+
+  async doLogin() {
+    if (typeof Social === 'undefined') return;
+    await Social.login();
+  },
+
+  async doLogout() {
+    if (typeof Social === 'undefined') return;
+    await Social.logout();
+  },
+
+  async syncToCloud() {
+    if (typeof Social === 'undefined' || !this.state) return;
+    await Social.syncToCloud(this.state);
   },
 
   // --- Tab Switching ---
@@ -190,53 +308,99 @@ const App = {
     document.getElementById('plan-content').innerHTML =
       '<div class="empty-state"><div class="empty-icon">\u{1F4CB}</div>' +
       '<div class="empty-text">プランを作成すると<br>ここに表示されます</div></div>';
+    document.getElementById('monthly-content').innerHTML = '';
   },
 
   // --- Goal Screen ---
   renderGoalScreen() {
-    const raceEl = document.getElementById('race-options');
-    raceEl.innerHTML = RACES.map(r =>
-      `<div class="goal-option${r.id === this.selectedRace ? ' selected' : ''}" onclick="App.selectRace('${r.id}', this)">
-        <div class="goal-emoji">${r.emoji}</div>
-        <div class="goal-title">${r.name}</div>
-        <div class="goal-desc">${r.desc}</div>
-      </div>`
-    ).join('');
+    const el = document.getElementById('goal-form-area');
+    if (!el) return;
 
-    const targetEl = document.getElementById('target-options');
-    targetEl.innerHTML = TARGETS.map(t =>
-      `<div class="goal-option${t.id === this.selectedTarget ? ' selected' : ''}" onclick="App.selectTarget('${t.id}', this)">
-        <div class="goal-title">${t.label}</div>
-        <div class="goal-desc">ペース目安: ${t.pace}</div>
-      </div>`
-    ).join('');
+    // Restore values from state if available
+    const s = this.state || {};
+    const raceName = s.raceName || '';
+    const raceDate = s.raceDate || '';
+    const raceType = s.raceType || 'full';
+    const targetTime = s.targetTime || '';
+
+    el.innerHTML = `
+      <div class="form-group">
+        <label class="form-label" for="input-race-name">大会名</label>
+        <input class="form-input" id="input-race-name" type="text" placeholder="例: 横浜マラソン 2026" value="${escapeHtml(raceName)}">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="input-race-date">大会日</label>
+        <input class="form-input" id="input-race-date" type="date" value="${escapeHtml(raceDate)}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">種目</label>
+        <div class="form-toggle-group">
+          <button class="form-toggle${raceType === 'full' ? ' active' : ''}" onclick="App.setRaceType('full',this)">フルマラソン</button>
+          <button class="form-toggle${raceType === 'half' ? ' active' : ''}" onclick="App.setRaceType('half',this)">ハーフマラソン</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="input-target-time">目標タイム</label>
+        <input class="form-input" id="input-target-time" type="text" placeholder="例: 3:30:00" value="${escapeHtml(targetTime)}" inputmode="numeric">
+        <div class="form-hint" id="pace-preview"></div>
+      </div>`;
+
+    // Live pace preview
+    const timeInput = document.getElementById('input-target-time');
+    const typeBtn = document.querySelector('.form-toggle.active');
+    this._raceType = raceType;
+    timeInput.addEventListener('input', () => this.updatePacePreview());
+    this.updatePacePreview();
   },
 
-  selectRace(id, el) {
-    this.selectedRace = id;
-    el.parentElement.querySelectorAll('.goal-option').forEach(o => o.classList.remove('selected'));
-    el.classList.add('selected');
+  _raceType: 'full',
+
+  setRaceType(type, el) {
+    this._raceType = type;
+    el.parentElement.querySelectorAll('.form-toggle').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    this.updatePacePreview();
   },
 
-  selectTarget(id, el) {
-    this.selectedTarget = id;
-    el.parentElement.querySelectorAll('.goal-option').forEach(o => o.classList.remove('selected'));
-    el.classList.add('selected');
+  updatePacePreview() {
+    const timeInput = document.getElementById('input-target-time');
+    const preview = document.getElementById('pace-preview');
+    if (!timeInput || !preview) return;
+
+    const sec = parseTargetTime(timeInput.value);
+    if (!sec) {
+      preview.textContent = '';
+      return;
+    }
+    const dist = RACE_DISTANCES[this._raceType] || 42.195;
+    const pacePerKm = sec / dist;
+    const paces = calcPaces(sec, this._raceType);
+    preview.innerHTML = `レースペース: ${formatPace(pacePerKm)}<br>Easy ${paces.easy} / Tempo ${paces.tempo} / Interval ${paces.interval}`;
   },
 
   // --- Generate Plan ---
   generatePlan() {
-    const race = RACES.find(r => r.id === this.selectedRace);
-    const target = TARGETS.find(t => t.id === this.selectedTarget);
-    const weeks = generatePlanData(this.selectedRace, this.selectedTarget);
+    const raceName = (document.getElementById('input-race-name').value || '').trim();
+    const raceDate = (document.getElementById('input-race-date').value || '').trim();
+    const targetTime = (document.getElementById('input-target-time').value || '').trim();
+    const raceType = this._raceType;
+
+    // Validation
+    if (!raceName) { alert('大会名を入力してください'); return; }
+    if (!raceDate) { alert('大会日を選択してください'); return; }
+    const targetSec = parseTargetTime(targetTime);
+    if (!targetSec) { alert('目標タイムを H:MM:SS 形式で入力してください（例: 3:30:00）'); return; }
+
+    const paces = calcPaces(targetSec, raceType);
+    const dist = RACE_DISTANCES[raceType];
+    const racePace = formatPace(targetSec / dist);
+    const weeks = generatePlanData(raceType, targetSec);
 
     this.state = {
-      raceId: this.selectedRace,
-      raceName: race.name,
-      raceDate: race.date,
-      targetId: this.selectedTarget,
-      targetLabel: target.label,
-      targetPace: target.pace,
+      raceName, raceDate, raceType, targetTime,
+      targetSeconds: targetSec,
+      racePace,
+      paces,
       plan: weeks,
       completed: this.state ? (this.state.completed || {}) : {}
     };
@@ -244,7 +408,9 @@ const App = {
 
     this.renderToday();
     this.renderPlan();
+    this.renderMonthlyChart();
     this.switchTab('today', document.querySelector('[data-tab="today"]'));
+    this.syncToCloud();
   },
 
   // --- Get Today's Workout ---
@@ -267,9 +433,7 @@ const App = {
         if (day.date === todayStr) return week;
       }
     }
-    // If today is before plan start, return first week
     if (todayStr < this.state.plan[0].days[0].date) return this.state.plan[0];
-    // If today is after plan end, return last week
     return this.state.plan[this.state.plan.length - 1];
   },
 
@@ -281,10 +445,10 @@ const App = {
   renderToday() {
     const workout = this.getTodayWorkout();
     const week = this.getCurrentWeek();
-    const paces = PACES[this.state.targetId];
+    const paces = this.state.paces;
 
     if (!week) {
-      document.getElementById('today-subtitle').textContent = `${this.state.raceName}・${this.state.targetLabel}`;
+      document.getElementById('today-subtitle').textContent = `${this.state.raceName}`;
       document.getElementById('today-content').innerHTML =
         '<div class="empty-state"><div class="empty-icon">\u{1F4C5}</div>' +
         '<div class="empty-text">今日はプラン期間外です<br>プランは ' + this.state.plan[0].days[0].date + ' から開始します</div></div>';
@@ -376,6 +540,21 @@ const App = {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
             トレーニング完了</button>`;
 
+    // Pace summary card
+    const paceSummary = `<div class="section" style="padding-top:0">
+      <div class="section-header">自動算出ペース</div>
+      <div class="card">
+        <div class="pace-grid">
+          <div class="pace-item"><div class="pace-label">レース</div><div class="pace-value">${this.state.racePace}</div></div>
+          <div class="pace-item"><div class="pace-label">Easy</div><div class="pace-value">${paces.easy}/km</div></div>
+          <div class="pace-item"><div class="pace-label">Tempo</div><div class="pace-value">${paces.tempo}/km</div></div>
+          <div class="pace-item"><div class="pace-label">Interval</div><div class="pace-value">${paces.interval}/km</div></div>
+          <div class="pace-item"><div class="pace-label">Long</div><div class="pace-value">${paces.long}/km</div></div>
+          <div class="pace-item"><div class="pace-label">Recovery</div><div class="pace-value">${paces.recovery}/km</div></div>
+        </div>
+      </div>
+    </div>`;
+
     document.getElementById('today-content').innerHTML = `
       <div class="today-hero type-${heroType}">
         <div class="workout-type">${TYPE_JA[heroType] || heroType}</div>
@@ -407,6 +586,7 @@ const App = {
           </div>
         </div>
       </div>
+      ${paceSummary}
       <div class="section" style="padding-top:0">
         <div class="section-header">週間走行距離</div>
         <div class="card">
@@ -420,9 +600,9 @@ const App = {
 
   // --- Render Plan ---
   renderPlan() {
-    const target = TARGETS.find(t => t.id === this.state.targetId);
+    const raceTypeLabel = this.state.raceType === 'half' ? 'ハーフ' : 'フル';
     document.getElementById('plan-subtitle').textContent =
-      `${this.state.raceName}・目標 ${target ? target.label : ''}`;
+      `${this.state.raceName}・${raceTypeLabel}・目標 ${this.state.targetTime}`;
 
     const todayStr = toISO(today());
     let html = '';
@@ -447,18 +627,187 @@ const App = {
 
     document.getElementById('plan-content').innerHTML = html;
 
-    // Auto-scroll to current week
     setTimeout(() => {
       const planContent = document.getElementById('plan-content');
       const currentWeek = this.getCurrentWeek();
       if (currentWeek) {
         const weekEls = planContent.querySelectorAll('.plan-week');
         const idx = this.state.plan.indexOf(currentWeek);
-        if (weekEls[idx]) {
-          weekEls[idx].scrollIntoView({ behavior: 'auto', block: 'start' });
-        }
+        if (weekEls[idx]) weekEls[idx].scrollIntoView({ behavior: 'auto', block: 'start' });
       }
     }, 100);
+  },
+
+  // --- Monthly Chart ---
+  renderMonthlyChart() {
+    const el = document.getElementById('monthly-content');
+    if (!el || !this.state || !this.state.plan) { if (el) el.innerHTML = ''; return; }
+
+    // Gather all plan days into a map: month -> { planned, completed }
+    const months = {};
+    for (const week of this.state.plan) {
+      for (const day of week.days) {
+        const ym = day.date.substring(0, 7); // "YYYY-MM"
+        if (!months[ym]) months[ym] = { planned: 0, completed: 0 };
+        months[ym].planned += day.dist;
+        if (this.isCompleted(day.date)) months[ym].completed += day.dist;
+      }
+    }
+
+    const sortedMonths = Object.keys(months).sort();
+    if (sortedMonths.length === 0) { el.innerHTML = ''; return; }
+
+    const maxDist = Math.max(...sortedMonths.map(m => months[m].planned));
+
+    const barsHTML = sortedMonths.map(ym => {
+      const d = months[ym];
+      const plannedH = Math.round((d.planned / maxDist) * 120);
+      const completedH = Math.round((d.completed / maxDist) * 120);
+      const label = ym.split('-')[1] + '月';
+      return `<div class="monthly-col">
+        <div class="monthly-values">
+          <span class="monthly-val-done">${Math.round(d.completed)}</span>
+          <span class="monthly-val-plan">/ ${Math.round(d.planned)}</span>
+        </div>
+        <div class="monthly-bar-wrap" style="height:${plannedH}px">
+          <div class="monthly-bar-planned" style="height:100%"></div>
+          <div class="monthly-bar-done" style="height:${d.planned > 0 ? Math.round((d.completed / d.planned) * 100) : 0}%"></div>
+        </div>
+        <div class="monthly-label">${label}</div>
+      </div>`;
+    }).join('');
+
+    el.innerHTML = `
+      <div class="section">
+        <div class="section-header">月間走行距離 (km)</div>
+        <div class="card">
+          <div class="monthly-chart">${barsHTML}</div>
+          <div class="monthly-legend">
+            <span class="legend-item"><span class="legend-dot done"></span>完了</span>
+            <span class="legend-item"><span class="legend-dot planned"></span>予定</span>
+          </div>
+        </div>
+      </div>`;
+  },
+
+  // --- Friends ---
+  renderFriendsOffline() {
+    const el = document.getElementById('friends-content');
+    if (!el) return;
+    const hasAuth = typeof Social !== 'undefined' && Social.enabled;
+    el.innerHTML = hasAuth
+      ? `<div class="empty-state"><div class="empty-icon">\u{1F465}</div>
+          <div class="empty-text">ログインするとランニング仲間と<br>トレーニング状況をシェアできます</div>
+          <button class="empty-btn" onclick="App.doLogin()">Googleでログイン</button></div>`
+      : `<div class="empty-state"><div class="empty-icon">\u{1F465}</div>
+          <div class="empty-text">Firebase未設定のため<br>仲間機能はオフラインです</div>
+          <div class="text-sm text-secondary mt-md">firebase-config.js を設定してください</div></div>`;
+  },
+
+  async renderFriendsLive() {
+    const el = document.getElementById('friends-content');
+    if (!el || typeof Social === 'undefined' || !Social.currentUser) return;
+
+    el.innerHTML = '<div class="empty-state"><div class="empty-text">読み込み中...</div></div>';
+
+    // Friend request area
+    const requests = await Social.getIncomingRequests();
+    const friends = await Social.loadFriendsData();
+
+    let html = '';
+
+    // Add friend section
+    html += `<div class="section">
+      <div class="section-header">仲間を追加</div>
+      <div class="card" style="display:flex;gap:var(--space-sm)">
+        <input class="form-input" id="friend-email-input" type="email" placeholder="メールアドレスで検索" style="flex:1;margin:0">
+        <button class="cta-btn" style="width:auto;margin:0;padding:var(--space-sm) var(--space-base);font-size:var(--font-size-subhead)" onclick="App.sendFriendReq()">追加</button>
+      </div>
+    </div>`;
+
+    // Pending requests
+    if (requests.length > 0) {
+      html += '<div class="section" style="padding-top:0"><div class="section-header">フレンドリクエスト</div>';
+      for (const req of requests) {
+        html += `<div class="friend-card">
+          <div class="friend-avatar" style="background:linear-gradient(135deg,#FF9500,#FF6B00)">${escapeHtml((req.fromName || '?')[0])}</div>
+          <div class="friend-info">
+            <div class="friend-name">${escapeHtml(req.fromName)}</div>
+          </div>
+          <button class="cta-btn" style="width:auto;margin:0;padding:var(--space-xs) var(--space-md);font-size:var(--font-size-caption1)" onclick="App.acceptFriend('${req.id}','${req.fromUid}')">承認</button>
+          <button class="auth-link" onclick="App.declineFriend('${req.id}')">拒否</button>
+        </div>`;
+      }
+      html += '</div>';
+    }
+
+    // Friends list
+    if (friends.length > 0) {
+      html += '<div class="section" style="padding-top:0"><div class="section-header">仲間</div>';
+      for (const f of friends) {
+        const streak = Social.calcStreak(f.completed);
+        const tw = Social.getTodayWorkoutForUser(f);
+        const todayLabel = tw ? (tw.done ? `<span class="done-badge">完了!</span>` : tw.label) : '';
+        const initial = (f.displayName || f.email || '?')[0].toUpperCase();
+        const photo = f.photoURL
+          ? `<img class="friend-avatar" src="${escapeHtml(f.photoURL)}" alt="" style="width:48px;height:48px;border-radius:50%">`
+          : `<div class="friend-avatar" style="background:linear-gradient(135deg,#5AC8FA,#007AFF)">${escapeHtml(initial)}</div>`;
+
+        const goal = f.settings
+          ? `${escapeHtml(f.settings.raceName || '')} ${f.settings.targetTime ? '・目標 ' + escapeHtml(f.settings.targetTime) : ''}`
+          : '';
+
+        // Week dots
+        const weekDots = [];
+        const mon = getMonday(today());
+        for (let i = 0; i < 7; i++) {
+          const d = toISO(addDays(mon, i));
+          const done = f.completed && f.completed[d];
+          weekDots.push(`<div class="friend-week-dot${done ? ' done' : ''}"></div>`);
+        }
+
+        html += `<div class="friend-card">
+          ${photo}
+          <div class="friend-info">
+            <div class="friend-name">${escapeHtml(f.displayName || f.email)}</div>
+            <div class="friend-goal">${goal}</div>
+            <div class="friend-today">${todayLabel}</div>
+            <div class="friend-week">${weekDots.join('')}</div>
+          </div>
+          <div class="friend-streak"><div class="streak-num">${streak}</div><div class="streak-label">日連続</div></div>
+        </div>`;
+      }
+      html += '</div>';
+    } else if (requests.length === 0) {
+      html += `<div class="empty-state" style="padding-top:var(--space-xl)"><div class="empty-icon">\u{1F465}</div>
+        <div class="empty-text">まだ仲間がいません<br>メールアドレスで友達を追加しよう</div></div>`;
+    }
+
+    el.innerHTML = html;
+  },
+
+  async sendFriendReq() {
+    const input = document.getElementById('friend-email-input');
+    if (!input) return;
+    const email = input.value.trim();
+    if (!email) { alert('メールアドレスを入力してください'); return; }
+    const ok = await Social.sendFriendRequest(email);
+    if (ok) {
+      alert('リクエストを送信しました');
+      input.value = '';
+    } else {
+      alert('送信できませんでした（既に送信済みか、ユーザーが見つかりません）');
+    }
+  },
+
+  async acceptFriend(requestId, fromUid) {
+    await Social.acceptRequest(requestId, fromUid);
+    this.renderFriendsLive();
+  },
+
+  async declineFriend(requestId) {
+    await Social.declineRequest(requestId);
+    this.renderFriendsLive();
   },
 
   // --- Toggle Completion ---
@@ -472,6 +821,8 @@ const App = {
     saveState(this.state);
     this.renderPlan();
     this.renderToday();
+    this.renderMonthlyChart();
+    this.syncToCloud();
   },
 
   // --- Complete Today ---
@@ -485,6 +836,8 @@ const App = {
     this.showCompletion(workout);
     this.renderToday();
     this.renderPlan();
+    this.renderMonthlyChart();
+    this.syncToCloud();
   },
 
   // --- Completion Overlay ---
@@ -510,45 +863,6 @@ const App = {
     document.getElementById('confetti-container').innerHTML = '';
   }
 };
-
-// --- Helpers ---
-function buildSteps(steps) {
-  return steps.map((s, i) =>
-    `<li>
-      <span class="step-index" style="background:${s.color}">${i + 1}</span>
-      <div class="step-info"><div class="step-label">${s.label}</div><div class="step-meta">${s.meta}</div></div>
-      <span class="step-pace">${s.pace}</span>
-    </li>`
-  ).join('');
-}
-
-function estimateTime(dist, paceStr) {
-  if (!paceStr || paceStr === '-' || dist === 0) return '—';
-  const parts = paceStr.replace('/km', '').split(':');
-  const paceMin = parseInt(parts[0]) + parseInt(parts[1]) / 60;
-  const totalMin = Math.round(dist * paceMin);
-  const h = Math.floor(totalMin / 60);
-  const m = totalMin % 60;
-  return h > 0 ? `${h}:${String(m).padStart(2, '0')}` : `${m}分`;
-}
-
-function launchConfetti() {
-  const container = document.getElementById('confetti-container');
-  container.innerHTML = '';
-  const colors = ['#007AFF','#34C759','#FF9500','#5856D6','#FF3B30','#FFCC00','#5AC8FA'];
-  for (let i = 0; i < 60; i++) {
-    const c = document.createElement('div');
-    c.classList.add('confetti');
-    c.style.left = Math.random() * 100 + '%';
-    c.style.background = colors[Math.floor(Math.random() * colors.length)];
-    c.style.width = (Math.random() * 8 + 4) + 'px';
-    c.style.height = (Math.random() * 8 + 4) + 'px';
-    c.style.animationDuration = (Math.random() * 2 + 1.5) + 's';
-    c.style.animationDelay = (Math.random() * 0.8) + 's';
-    if (Math.random() > 0.5) c.style.borderRadius = '50%';
-    container.appendChild(c);
-  }
-}
 
 // --- Initialize ---
 document.addEventListener('DOMContentLoaded', () => App.init());
