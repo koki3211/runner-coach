@@ -194,6 +194,24 @@ const App = {
 
   init() {
     this.state = loadState();
+    // Migrate old plan data: ensure all distances are integers
+    if (this.state && this.state.plan) {
+      let migrated = false;
+      for (const week of this.state.plan) {
+        for (const day of week.days) {
+          if (day.dist !== Math.round(day.dist)) {
+            day.dist = Math.round(day.dist);
+            migrated = true;
+          }
+        }
+        const correctTotal = Math.round(week.days.reduce((s, d) => s + d.dist, 0));
+        if (week.totalDist !== correctTotal) {
+          week.totalDist = correctTotal;
+          migrated = true;
+        }
+      }
+      if (migrated) saveState(this.state);
+    }
     this.renderGoalScreen();
 
     if (this.state && this.state.plan) {
@@ -439,7 +457,7 @@ const App = {
       ]);
     } else if (w.type === 'easy' || w.type === 'recovery') {
       stepsHTML = buildSteps([
-        { label: w.name, meta: w.dist + 'km 一定ペース', pace: w.pace, color: TYPE_COLORS[w.type] }
+        { label: w.name, meta: Math.round(w.dist) + 'km 一定ペース', pace: w.pace, color: TYPE_COLORS[w.type] }
       ]);
     }
 
@@ -486,7 +504,7 @@ const App = {
         '<div class="bar-label">' + m.label + '</div></div>';
     }).join('');
 
-    const heroDetail = w.dist > 0 ? '合計 ' + w.dist + 'km・推定 ' + estimateTime(w.dist, w.pace) : '休養日';
+    const heroDetail = w.dist > 0 ? '合計 ' + Math.round(w.dist) + 'km・推定 ' + estimateTime(w.dist, w.pace) : '休養日';
 
     const btnHTML = w.type === 'rest' ? ''
       : done
@@ -538,7 +556,7 @@ const App = {
 
       for (const day of week.days) {
         const done = this.isCompleted(day.date);
-        const distLabel = day.dist > 0 ? day.dist + 'km' : '\u2014';
+        const distLabel = day.dist > 0 ? Math.round(day.dist) + 'km' : '\u2014';
         html += '<li class="plan-item">' +
           '<span class="plan-dot" style="background:' + TYPE_COLORS[day.type] + '"></span>' +
           '<span class="plan-day">' + day.dayJa + '</span>' +
@@ -720,7 +738,7 @@ const App = {
     const overlay = document.getElementById('completion-overlay');
     document.getElementById('completion-subtitle').textContent =
       workout ? workout.name + ' 完了' : 'ワークアウト完了';
-    const dist = workout ? workout.dist : 0;
+    const dist = workout ? Math.round(workout.dist) : 0;
     const time = workout ? estimateTime(dist, workout.pace) : '\u2014';
     document.getElementById('completion-stats').innerHTML =
       '<div class="completion-stat"><div class="stat-value">' + dist + '</div><div class="stat-label">km</div></div>' +
