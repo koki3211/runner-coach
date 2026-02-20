@@ -869,6 +869,91 @@
       font-size: var(--font-size-footnote); line-height: 1.5; opacity: 0.9;
     }
 
+    /* Plan Type Tabs (Run / Strength) */
+    .plan-type-tabs {
+      display: flex; gap: 0; margin: var(--space-base);
+      background: var(--color-fill-tertiary); border-radius: var(--radius-md); padding: 3px;
+    }
+    .plan-type-tab {
+      flex: 1; padding: var(--space-sm) var(--space-base);
+      text-align: center; border: none; background: none; cursor: pointer;
+      font-family: var(--font-family-body); font-size: var(--font-size-subhead);
+      font-weight: var(--font-weight-semibold); color: var(--color-label-secondary);
+      border-radius: calc(var(--radius-md) - 2px);
+      transition: all var(--duration-fast) var(--easing-default);
+    }
+    .plan-type-tab.active {
+      background: var(--color-bg-primary); color: var(--color-label-primary);
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* Strength Training Items */
+    .strength-day {
+      display: flex; align-items: center; gap: var(--space-md);
+      padding: var(--space-md) var(--space-base);
+      background: var(--color-bg-primary);
+      border-bottom: 0.5px solid var(--color-separator);
+    }
+    .strength-day:first-child { border-radius: var(--radius-md) var(--radius-md) 0 0; }
+    .strength-day:last-child { border-radius: 0 0 var(--radius-md) var(--radius-md); border-bottom: none; }
+    .strength-day-label {
+      width: 56px; flex-shrink: 0;
+      font-size: var(--font-size-caption1); color: var(--color-label-secondary);
+    }
+    .strength-day-label .strength-day-name { font-weight: var(--font-weight-semibold); }
+    .strength-day-label .strength-day-date { font-size: var(--font-size-caption2); }
+    .strength-exercises { flex: 1; min-width: 0; }
+    .strength-exercise-row {
+      display: flex; align-items: center; gap: var(--space-sm);
+      padding: 3px 0;
+    }
+    .strength-exercise-check {
+      width: 20px; height: 20px; border-radius: 4px;
+      border: 2px solid var(--color-fill-primary);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; cursor: pointer;
+      transition: all var(--duration-fast) var(--easing-spring);
+    }
+    .strength-exercise-check.done { border-color: var(--color-success); background: var(--color-success); }
+    .strength-exercise-check.done::after { content: "\2713"; color: #fff; font-size: 11px; font-weight: var(--font-weight-bold); }
+    .strength-exercise-name {
+      flex: 1; font-size: var(--font-size-footnote);
+      background: none; border: none; outline: none;
+      font-family: var(--font-family-body); color: var(--color-label-primary);
+      padding: 2px 0;
+    }
+    .strength-exercise-name::placeholder { color: var(--color-label-tertiary); }
+    .strength-add-btn {
+      font-size: var(--font-size-caption1); color: var(--color-brand-primary);
+      background: none; border: none; cursor: pointer; padding: 2px 0;
+      font-family: var(--font-family-body); font-weight: var(--font-weight-semibold);
+    }
+    .strength-add-btn:active { opacity: 0.7; }
+    .strength-remove-btn {
+      width: 18px; height: 18px; border-radius: 50%;
+      background: var(--color-fill-tertiary); border: none;
+      color: var(--color-label-tertiary); font-size: 12px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .strength-remove-btn:active { opacity: 0.7; }
+
+    /* Today Strength Training Section */
+    .today-strength {
+      margin: var(--space-base); padding: var(--space-base);
+      background: var(--color-bg-primary); border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-card);
+    }
+    .today-strength-header {
+      display: flex; align-items: center; gap: var(--space-sm);
+      font-size: var(--font-size-headline); font-weight: var(--font-weight-semibold);
+      margin-bottom: var(--space-md);
+    }
+    .today-strength-rest {
+      text-align: center; padding: var(--space-md);
+      color: var(--color-label-secondary); font-size: var(--font-size-subhead);
+    }
+
     /* Utility */
     .mx { margin-left: var(--space-base); margin-right: var(--space-base); }
     .text-secondary { color: var(--color-label-secondary); }

@@ -90,6 +90,7 @@ const Social = {
       },
       completed: state.completed || {},
       actualDist: state.actualDist || {},
+      strengthPlan: state.strengthPlan || {},
       plan: state.plan || [],
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
