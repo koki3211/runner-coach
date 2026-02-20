@@ -532,6 +532,7 @@ const App = {
     }).join('');
 
     const heroDetail = w.dist > 0 ? '合計 ' + formatDist(w.dist, w.type) + 'km・推定 ' + estimateTime(w.dist, w.pace) : '休養日';
+    const commentHTML = w.comment ? '<div class="workout-comment">' + escapeHtml(w.comment) + '</div>' : '';
 
     const btnHTML = w.type === 'rest' ? ''
       : done
@@ -543,6 +544,7 @@ const App = {
         '<div class="workout-type">' + (TYPE_JA[w.type] || w.type) + '</div>' +
         '<div class="workout-name">' + escapeHtml(w.name) + '</div>' +
         '<div class="workout-detail">' + heroDetail + '</div>' +
+        commentHTML +
         btnHTML +
       '</div>' +
       (stepsHTML ? '<div class="section"><div class="section-header">メニュー詳細</div><div class="card"><ul class="workout-steps">' + stepsHTML + '</ul></div></div>' : '') +
@@ -687,7 +689,7 @@ const App = {
     // Get my short ID
     const myId = await Social.getOrCreateUserId();
     const myIdHTML = myId
-      ? '<div class="card mx"><div class="my-id-card"><div class="text-sm text-secondary">あなたのID</div><div class="my-id-code">' + escapeHtml(myId) + '</div><div class="my-id-actions"><button class="id-copy-btn" onclick="navigator.clipboard.writeText(\'' + escapeHtml(myId) + '\');this.textContent=\'コピー済み\'">IDをコピー</button></div></div></div>'
+      ? '<div class="my-id-strip"><span>あなたのID</span><span class="my-id-value">' + escapeHtml(myId) + '</span><button class="my-id-copy" onclick="navigator.clipboard.writeText(\'' + escapeHtml(myId) + '\');this.textContent=\'\u6e08\'">コピー</button></div>'
       : '';
 
     container.innerHTML = selfCardHTML + '<div id="auth-section"></div>' + myIdHTML +
@@ -800,11 +802,16 @@ const App = {
         const nameDisplay = TYPE_JA[type] || day.name;
         const isToday = day.date === todayStr;
 
-        planHTML += '<li class="plan-item' + (isToday ? ' friend-plan-today' : '') + '" style="cursor:default">' +
+        const hasComment = day.comment && day.comment.trim();
+        const commentBadge = hasComment ? '<span class="plan-comment-badge">\u2026</span>' : '';
+        const itemClick = hasComment ? ' onclick="App.showFriendComment(\'' + uid + '\',\'' + day.date + '\')"' : '';
+        const itemCursor = hasComment ? 'cursor:pointer' : 'cursor:default';
+
+        planHTML += '<li class="plan-item' + (isToday ? ' friend-plan-today' : '') + '" style="' + itemCursor + '"' + itemClick + '>' +
           '<span class="plan-dot" style="background:' + (TYPE_COLORS[type] || 'var(--color-fill-primary)') + '"></span>' +
           '<span class="plan-day">' + day.dayJa + '</span>' +
           '<span class="plan-date">' + dateLabel + '</span>' +
-          '<span class="plan-name">' + escapeHtml(nameDisplay) + '</span>' +
+          '<span class="plan-name">' + escapeHtml(nameDisplay) + commentBadge + '</span>' +
           '<span class="plan-dist">' + distLabel + '</span>' +
           '<span class="plan-check' + (done ? ' done' : '') + '"></span></li>';
       }
@@ -832,6 +839,41 @@ const App = {
 
   closeFriendPlan() {
     document.getElementById('friend-plan-overlay').classList.remove('show');
+  },
+
+  showFriendComment(uid, dateStr) {
+    const friend = this.friendsData.find(f => f.uid === uid);
+    if (!friend || !friend.plan) return;
+    let targetDay = null;
+    for (const week of friend.plan) {
+      for (const day of week.days) {
+        if (day.date === dateStr) { targetDay = day; break; }
+      }
+      if (targetDay) break;
+    }
+    if (!targetDay || !targetDay.comment) return;
+
+    const dd = fromISO(dateStr);
+    const dateLabel = (dd.getMonth() + 1) + '/' + dd.getDate();
+    const type = TYPE_MIGRATION[targetDay.type] || targetDay.type;
+    const typeName = TYPE_JA[type] || targetDay.name;
+
+    const overlay = document.getElementById('edit-overlay');
+    overlay.innerHTML =
+      '<div class="edit-backdrop" onclick="App.closeEditWorkout()"></div>' +
+      '<div class="edit-sheet">' +
+        '<div class="edit-sheet-handle"></div>' +
+        '<div class="edit-sheet-title">' + targetDay.dayJa + ' ' + dateLabel + ' \u2014 ' + escapeHtml(typeName) + '</div>' +
+        '<div style="padding:0 var(--space-sm);margin-bottom:var(--space-lg)">' +
+          '<div style="font-size:var(--font-size-body);color:var(--color-label-primary);line-height:1.6;white-space:pre-wrap">' +
+            escapeHtml(targetDay.comment) +
+          '</div>' +
+        '</div>' +
+        '<div class="edit-actions">' +
+          '<button class="cta-btn" style="flex:1;width:auto;margin:0" onclick="App.closeEditWorkout()">\u9589\u3058\u308b</button>' +
+        '</div>' +
+      '</div>';
+    overlay.classList.add('show');
   },
 
   async addFriend() {
@@ -882,8 +924,15 @@ const App = {
     ).join('');
 
     const dd = fromISO(dateStr);
-    const distVal = targetDay.type === 'interval' ? formatDist(targetDay.dist, 'interval') : Math.round(targetDay.dist);
-    const stepVal = targetDay.type === 'interval' ? '0.1' : '1';
+    const distVal = Math.round(targetDay.dist);
+    const isInterval = targetDay.type === 'interval';
+
+    // Parse interval rep info from detail
+    let repDist = 400, repCount = 8;
+    if (isInterval && targetDay.detail && targetDay.detail.reps) {
+      const m = targetDay.detail.reps.match(/(\d+)m\s*[×x]\s*(\d+)/i);
+      if (m) { repDist = parseInt(m[1]); repCount = parseInt(m[2]); }
+    }
 
     const overlay = document.getElementById('edit-overlay');
     overlay.innerHTML =
@@ -892,9 +941,17 @@ const App = {
         '<div class="edit-sheet-handle"></div>' +
         '<div class="edit-sheet-title">' + targetDay.dayJa + ' ' + (dd.getMonth() + 1) + '/' + dd.getDate() + ' のメニュー</div>' +
         '<div class="edit-field"><label class="form-label">メニュー</label>' +
-          '<select id="edit-type" class="form-input edit-select">' + typeOptions + '</select></div>' +
-        '<div class="edit-field"><label class="form-label">距離 (km)</label>' +
-          '<input type="number" id="edit-dist" class="form-input" value="' + distVal + '" min="0" step="' + stepVal + '"></div>' +
+          '<select id="edit-type" class="form-input edit-select" onchange="App.onEditTypeChange()">' + typeOptions + '</select></div>' +
+        '<div id="edit-interval-fields" style="display:' + (isInterval ? 'block' : 'none') + '">' +
+          '<div class="edit-field"><label class="form-label">1本あたりの距離 (m)</label>' +
+            '<input type="number" id="edit-rep-dist" class="form-input" value="' + repDist + '" min="100" step="100"></div>' +
+          '<div class="edit-field"><label class="form-label">本数</label>' +
+            '<input type="number" id="edit-reps" class="form-input" value="' + repCount + '" min="1" step="1"></div>' +
+        '</div>' +
+        '<div id="edit-normal-fields" style="display:' + (isInterval ? 'none' : 'block') + '">' +
+          '<div class="edit-field"><label class="form-label">距離 (km)</label>' +
+            '<input type="number" id="edit-dist" class="form-input" value="' + distVal + '" min="0" step="1"></div>' +
+        '</div>' +
         '<div class="edit-field"><label class="form-label">コメント</label>' +
           '<input type="text" id="edit-comment" class="form-input" value="' + escapeHtml(targetDay.comment || '') + '" placeholder="コメントを入力"></div>' +
         '<div class="edit-actions">' +
@@ -909,11 +966,27 @@ const App = {
     document.getElementById('edit-overlay').classList.remove('show');
   },
 
+  onEditTypeChange() {
+    const type = document.getElementById('edit-type').value;
+    document.getElementById('edit-interval-fields').style.display = type === 'interval' ? 'block' : 'none';
+    document.getElementById('edit-normal-fields').style.display = type === 'interval' ? 'none' : 'block';
+  },
+
   saveEditWorkout(dateStr) {
     const newType = document.getElementById('edit-type').value;
-    const rawDist = parseFloat(document.getElementById('edit-dist').value) || 0;
-    const newDist = newType === 'interval' ? Math.round(rawDist * 10) / 10 : Math.round(rawDist);
     const newComment = document.getElementById('edit-comment').value.trim();
+    let newDist, newDetail;
+
+    if (newType === 'interval') {
+      const repDist = parseInt(document.getElementById('edit-rep-dist').value) || 400;
+      const repCount = parseInt(document.getElementById('edit-reps').value) || 1;
+      newDist = (repDist * repCount) / 1000;
+      const restDist = repDist <= 600 ? '200m' : repDist <= 1200 ? '400m' : '600m';
+      newDetail = { reps: repDist + 'm \u00d7 ' + repCount, rest: restDist + '\u30b8\u30e7\u30b0' };
+    } else {
+      newDist = Math.round(parseFloat(document.getElementById('edit-dist').value) || 0);
+      newDetail = null;
+    }
 
     for (const week of this.state.plan) {
       for (const day of week.days) {
@@ -922,6 +995,8 @@ const App = {
           day.dist = newDist;
           day.name = TYPE_JA[newType] || newType;
           day.comment = newComment;
+          if (newDetail) day.detail = newDetail;
+          else delete day.detail;
           if (this.state.paces && this.state.paces[newType]) {
             day.pace = this.state.paces[newType];
           }
