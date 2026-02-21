@@ -23,6 +23,18 @@ const TYPE_JA = {
 // Migration map for old type names
 const TYPE_MIGRATION = { recovery: 'jog', easy: 'jog', cross: 'jog' };
 
+// Default day schedule: index 0=Mon ... 6=Sun
+// Sat=interval (user's group runs intervals on Saturday)
+const DEFAULT_DAY_SCHEDULE = [
+  'jog',       // 月: ジョグ
+  'rest',      // 火: レスト
+  'tempo',     // 水: テンポ
+  'jog',       // 木: ジョグ
+  'rest',      // 金: レスト
+  'interval',  // 土: インターバル
+  'long'       // 日: ロング
+];
+
 const INTERVALS = [
   { reps: '400m \u00d7 8', rest: '200m\u30b8\u30e7\u30b0' },
   { reps: '800m \u00d7 5', rest: '200m\u30b8\u30e7\u30b0' },
@@ -87,16 +99,20 @@ function formatPace(minPerKm, roundTo5) {
 }
 
 // --- Plan Generation ---
-function generatePlanData(raceName, raceDate, raceType, targetTime) {
+function generatePlanData(raceName, raceDate, raceType, targetTime, daySchedule) {
   const paces = calcPaces(targetTime, raceType);
   const raceD = fromISO(raceDate);
   const startMonday = getMonday(today());
   const weeksAvail = weeksBetween(startMonday, raceD);
-  const totalWeeks = Math.max(4, Math.min(24, weeksAvail - 1)); // leave taper week before race
+  const totalWeeks = Math.max(4, Math.min(24, weeksAvail - 1));
+
+  const schedule = daySchedule || DEFAULT_DAY_SCHEDULE;
+
+  // Count jog slots for distributing light/normal jog
+  const jogSlots = schedule.reduce((arr, t, i) => { if (t === 'jog') arr.push(i); return arr; }, []);
 
   // Volume scale: half = smaller, full = larger
   const scale = raceType === 'half' ? 0.7 : 1.0;
-  // Faster runners need more volume
   const paceScale = paces.race < 4.5 ? 1.15 : paces.race < 5.5 ? 1.0 : 0.9;
 
   const weeks = [];
@@ -109,11 +125,9 @@ function generatePlanData(raceName, raceDate, raceType, targetTime) {
     else if (frac < 0.85) { phase = 'peak'; phaseName = 'ピーク期'; }
     else { phase = 'taper'; phaseName = 'テーパリング期'; }
 
-    // Recovery weeks every 4th week
     const isRecovery = (w > 0 && w % 4 === 3);
     const volMult = isRecovery ? 0.7 : 1.0;
 
-    // Progressive overload
     const progress = 1 + frac * 0.6;
     const taperFactor = phase === 'taper' ? 0.7 - (frac - 0.85) * 2 : 1.0;
     const factor = progress * taperFactor * volMult * scale * paceScale;
@@ -125,19 +139,29 @@ function generatePlanData(raceName, raceDate, raceType, targetTime) {
     const longDist = roundKm((longBase + w * 1.2) * scale * paceScale * taperFactor * volMult);
 
     const intv = INTERVALS[w % INTERVALS.length];
-    // Interval distance = reps distance only (e.g. 400m×8 = 3.2km)
     const intervalDist = parseRepsDist(intv.reps);
     const weekStart = addDays(startMonday, w * 7);
 
-    const days = [
-      { type: 'jog', name: 'ジョグ', dist: jogLightDist, pace: formatPace(paces.jog, true) },
-      { type: 'rest', name: 'レスト', dist: 0, pace: '-' },
-      { type: 'interval', name: 'インターバル', dist: intervalDist, pace: formatPace(paces.interval, true), detail: intv },
-      { type: 'jog', name: 'ジョグ', dist: jogDist, pace: formatPace(paces.jog, true) },
-      { type: w % 2 === 0 ? 'rest' : 'jog', name: w % 2 === 0 ? 'レスト' : 'ジョグ', dist: w % 2 === 0 ? 0 : jogLightDist, pace: w % 2 === 0 ? '-' : formatPace(paces.jog, true) },
-      { type: 'tempo', name: 'テンポラン', dist: tempoDist, pace: formatPace(paces.tempo, true) },
-      { type: 'long', name: 'ロングラン', dist: longDist, pace: formatPace(paces.long, true) }
-    ];
+    // Build days from schedule
+    let jogCount = 0;
+    const days = schedule.map((type, i) => {
+      if (type === 'rest') {
+        return { type: 'rest', name: 'レスト', dist: 0, pace: '-' };
+      }
+      if (type === 'interval') {
+        return { type: 'interval', name: 'インターバル', dist: intervalDist, pace: formatPace(paces.interval, true), detail: intv };
+      }
+      if (type === 'tempo') {
+        return { type: 'tempo', name: 'テンポラン', dist: tempoDist, pace: formatPace(paces.tempo, true) };
+      }
+      if (type === 'long') {
+        return { type: 'long', name: 'ロングラン', dist: longDist, pace: formatPace(paces.long, true) };
+      }
+      // jog: alternate between light and normal
+      jogCount++;
+      const isLight = jogCount % 2 === 1;
+      return { type: 'jog', name: 'ジョグ', dist: isLight ? jogLightDist : jogDist, pace: formatPace(paces.jog, true) };
+    });
 
     const weekDays = days.map((d, i) => ({
       ...d,
@@ -436,6 +460,40 @@ const App = {
       if (timeH) timeH.value = tp[0] || '4';
       if (timeM) timeM.value = tp[1] || '00';
     }
+
+    // Day schedule selector
+    this.renderDaySchedule(s.daySchedule || DEFAULT_DAY_SCHEDULE);
+  },
+
+  renderDaySchedule(schedule) {
+    const el = document.getElementById('day-schedule');
+    if (!el) return;
+    const typeOptions = [
+      { value: 'rest', label: 'レスト', color: 'var(--color-rest-day)' },
+      { value: 'jog', label: 'ジョグ', color: 'var(--color-easy-run)' },
+      { value: 'interval', label: 'インターバル', color: 'var(--color-interval)' },
+      { value: 'tempo', label: 'テンポラン', color: 'var(--color-tempo-run)' },
+      { value: 'long', label: 'ロングラン', color: 'var(--color-long-run)' }
+    ];
+    el.innerHTML = DAYS_JA.map((day, i) => {
+      const options = typeOptions.map(t =>
+        '<option value="' + t.value + '"' + (schedule[i] === t.value ? ' selected' : '') + '>' + t.label + '</option>'
+      ).join('');
+      const color = typeOptions.find(t => t.value === schedule[i]);
+      return '<div class="day-schedule-row">' +
+        '<span class="day-schedule-dot" id="day-dot-' + i + '" style="background:' + (color ? color.color : 'var(--color-rest-day)') + '"></span>' +
+        '<span class="day-schedule-label">' + day + '</span>' +
+        '<select class="day-schedule-select" id="day-sched-' + i + '" onchange="App.onDayScheduleChange(' + i + ',this.value)">' + options + '</select>' +
+      '</div>';
+    }).join('');
+  },
+
+  onDayScheduleChange(dayIdx, value) {
+    const dot = document.getElementById('day-dot-' + dayIdx);
+    if (dot) {
+      const colorMap = { rest: 'var(--color-rest-day)', jog: 'var(--color-easy-run)', interval: 'var(--color-interval)', tempo: 'var(--color-tempo-run)', long: 'var(--color-long-run)' };
+      dot.style.background = colorMap[value] || 'var(--color-rest-day)';
+    }
   },
 
   selectRaceType(el) {
@@ -462,11 +520,18 @@ const App = {
       return;
     }
 
-    const weeks = generatePlanData(raceName, raceDate, raceType, targetTime);
+    // Read day schedule from form
+    const daySchedule = [];
+    for (let i = 0; i < 7; i++) {
+      const sel = document.getElementById('day-sched-' + i);
+      daySchedule.push(sel ? sel.value : DEFAULT_DAY_SCHEDULE[i]);
+    }
+
+    const weeks = generatePlanData(raceName, raceDate, raceType, targetTime, daySchedule);
     const paces = calcPaces(targetTime, raceType);
 
     this.state = {
-      raceName, raceDate, raceType, targetTime,
+      raceName, raceDate, raceType, targetTime, daySchedule,
       paces: {
         jog: formatPace(paces.jog, true),
         tempo: formatPace(paces.tempo, true),
