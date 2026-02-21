@@ -806,14 +806,17 @@
     }
     .friend-plan-overlay.show { display: flex; animation: fadeIn var(--duration-normal) var(--easing-default); }
     .friend-plan-header {
-      position: sticky; top: 0; z-index: 10;
+      position: relative; z-index: 10;
       background: var(--color-bg-primary);
-      padding: calc(var(--space-lg) + var(--safe-area-top)) var(--space-base) var(--space-md);
+      padding: var(--safe-area-top) var(--space-base) var(--space-md);
       border-bottom: 0.5px solid var(--color-separator);
       text-align: center;
     }
+    .friend-plan-header-row {
+      display: flex; justify-content: flex-end;
+      padding-top: var(--space-md); padding-bottom: var(--space-sm);
+    }
     .friend-plan-close {
-      position: absolute; top: calc(var(--space-md) + var(--safe-area-top)); right: var(--space-base);
       width: 32px; height: 32px; border-radius: 50%;
       background: var(--color-fill-tertiary); border: none;
       font-size: 16px; cursor: pointer; display: flex;
@@ -952,6 +955,42 @@
     .today-strength-rest {
       text-align: center; padding: var(--space-md);
       color: var(--color-label-secondary); font-size: var(--font-size-subhead);
+    }
+
+    /* Active Workout Button */
+    .start-btn.active-btn {
+      background: var(--color-success);
+      animation: activeGlow 2s ease-in-out infinite;
+    }
+    .active-pulse {
+      display: inline-block; width: 8px; height: 8px;
+      border-radius: 50%; background: #fff;
+      margin-right: var(--space-sm);
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.7); }
+    }
+    @keyframes activeGlow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(52, 199, 89, 0.4); }
+      50% { box-shadow: 0 0 0 8px rgba(52, 199, 89, 0); }
+    }
+
+    /* Friend Active Status */
+    .friend-active-status {
+      display: inline-flex; align-items: center; gap: 4px;
+      color: var(--color-success); font-weight: var(--font-weight-semibold);
+    }
+    .active-dot {
+      display: inline-block; width: 6px; height: 6px;
+      border-radius: 50%; background: var(--color-success);
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    .active-elapsed {
+      font-weight: var(--font-weight-regular);
+      font-size: var(--font-size-caption2);
+      color: var(--color-label-secondary);
     }
 
     /* Utility */
