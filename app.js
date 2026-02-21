@@ -17,7 +17,7 @@ const TYPE_LABELS = {
   tempo: 'Tempo', long: 'Long'
 };
 const TYPE_JA = {
-  jog: 'ジョグ', rest: 'レスト', interval: 'インターバル',
+  rest: 'レスト', jog: 'ジョグ', interval: 'インターバル',
   tempo: 'テンポラン', long: 'ロングラン'
 };
 // Migration map for old type names
@@ -78,9 +78,11 @@ function calcPaces(targetTime, raceType) {
   };
 }
 
-function formatPace(minPerKm) {
+function formatPace(minPerKm, roundTo5) {
   const m = Math.floor(minPerKm);
-  const s = Math.round((minPerKm - m) * 60);
+  let s = Math.round((minPerKm - m) * 60);
+  if (roundTo5) s = Math.round(s / 5) * 5;
+  if (s >= 60) return (m + 1) + ':00';
   return m + ':' + String(s).padStart(2, '0');
 }
 
@@ -128,13 +130,13 @@ function generatePlanData(raceName, raceDate, raceType, targetTime) {
     const weekStart = addDays(startMonday, w * 7);
 
     const days = [
-      { type: 'jog', name: 'ジョグ', dist: jogLightDist, pace: formatPace(paces.jog) },
+      { type: 'jog', name: 'ジョグ', dist: jogLightDist, pace: formatPace(paces.jog, true) },
       { type: 'rest', name: 'レスト', dist: 0, pace: '-' },
-      { type: 'interval', name: 'インターバル', dist: intervalDist, pace: formatPace(paces.interval), detail: intv },
-      { type: 'jog', name: 'ジョグ', dist: jogDist, pace: formatPace(paces.jog) },
-      { type: w % 2 === 0 ? 'rest' : 'jog', name: w % 2 === 0 ? 'レスト' : 'ジョグ', dist: w % 2 === 0 ? 0 : jogLightDist, pace: w % 2 === 0 ? '-' : formatPace(paces.jog) },
-      { type: 'tempo', name: 'テンポラン', dist: tempoDist, pace: formatPace(paces.tempo) },
-      { type: 'long', name: 'ロングラン', dist: longDist, pace: formatPace(paces.long) }
+      { type: 'interval', name: 'インターバル', dist: intervalDist, pace: formatPace(paces.interval, true), detail: intv },
+      { type: 'jog', name: 'ジョグ', dist: jogDist, pace: formatPace(paces.jog, true) },
+      { type: w % 2 === 0 ? 'rest' : 'jog', name: w % 2 === 0 ? 'レスト' : 'ジョグ', dist: w % 2 === 0 ? 0 : jogLightDist, pace: w % 2 === 0 ? '-' : formatPace(paces.jog, true) },
+      { type: 'tempo', name: 'テンポラン', dist: tempoDist, pace: formatPace(paces.tempo, true) },
+      { type: 'long', name: 'ロングラン', dist: longDist, pace: formatPace(paces.long, true) }
     ];
 
     const weekDays = days.map((d, i) => ({
@@ -466,11 +468,11 @@ const App = {
     this.state = {
       raceName, raceDate, raceType, targetTime,
       paces: {
-        jog: formatPace(paces.jog),
-        tempo: formatPace(paces.tempo),
-        interval: formatPace(paces.interval),
-        long: formatPace(paces.long),
-        race: formatPace(paces.race)
+        jog: formatPace(paces.jog, true),
+        tempo: formatPace(paces.tempo, true),
+        interval: formatPace(paces.interval, true),
+        long: formatPace(paces.long, true),
+        race: formatPace(paces.race, true)
       },
       plan: weeks,
       completed: this.state ? (this.state.completed || {}) : {}
@@ -1103,7 +1105,7 @@ const App = {
           '<div class="edit-field"><label class="form-label">本数</label>' +
             '<input type="number" id="edit-reps" class="form-input" value="' + repCount + '" min="1" step="1"></div>' +
         '</div>' +
-        '<div id="edit-normal-fields" style="display:' + (isInterval ? 'none' : 'block') + '">' +
+        '<div id="edit-normal-fields" style="display:' + (isInterval || isRest ? 'none' : 'block') + '">' +
           '<div class="edit-field"><label class="form-label">目標距離 (km)</label>' +
             '<input type="number" id="edit-dist" class="form-input" value="' + distVal + '" min="0" step="1"></div>' +
         '</div>' +
@@ -1140,7 +1142,7 @@ const App = {
     const isInterval = type === 'interval';
     const isRest = type === 'rest';
     document.getElementById('edit-interval-fields').style.display = isInterval ? 'block' : 'none';
-    document.getElementById('edit-normal-fields').style.display = isInterval ? 'none' : 'block';
+    document.getElementById('edit-normal-fields').style.display = (isInterval || isRest) ? 'none' : 'block';
     document.getElementById('edit-pace-field').style.display = isRest ? 'none' : 'block';
     document.getElementById('edit-actual-field').style.display = isRest ? 'none' : 'block';
   },
@@ -1156,6 +1158,9 @@ const App = {
       newDist = (repDist * repCount) / 1000;
       const restDist = repDist <= 600 ? '200m' : repDist <= 1200 ? '400m' : '600m';
       newDetail = { reps: repDist + 'm \u00d7 ' + repCount, rest: restDist + '\u30b8\u30e7\u30b0' };
+    } else if (newType === 'rest') {
+      newDist = 0;
+      newDetail = null;
     } else {
       newDist = Math.round(parseFloat(document.getElementById('edit-dist').value) || 0);
       newDetail = null;
