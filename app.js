@@ -414,6 +414,18 @@ const App = {
       '</div>';
   },
 
+  // --- Plan Type Tab ---
+  _planViewType: 'run', // 'run' or 'strength'
+
+  switchPlanType(type) {
+    this._planViewType = type;
+    document.querySelectorAll('.plan-type-tab').forEach(t => {
+      t.classList.toggle('active', t.dataset.planType === type);
+    });
+    document.getElementById('plan-run-content').style.display = type === 'run' ? 'block' : 'none';
+    document.getElementById('plan-strength-content').style.display = type === 'strength' ? 'block' : 'none';
+  },
+
   // --- Tab Switching ---
   switchTab(id, el) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -739,7 +751,33 @@ const App = {
       '<div class="section" style="padding-top:0"><div class="section-header">月間走行距離</div><div class="card">' +
         '<div class="bar-chart">' + monthlyChartHTML + '</div>' +
         '<div class="text-sm text-secondary" style="text-align:center;margin-top:var(--space-xs)">実績 / 予定（km）</div>' +
-      '</div></div>';
+      '</div></div>' +
+      this.buildTodayStrengthHTML();
+  },
+
+  buildTodayStrengthHTML() {
+    const todayStr = toISO(today());
+    const exercises = this.getStrengthDay(todayStr);
+
+    let innerHTML = '';
+    if (exercises.length === 0) {
+      innerHTML = '<div class="today-strength-rest">レスト</div>';
+    } else {
+      for (let i = 0; i < exercises.length; i++) {
+        const ex = exercises[i];
+        innerHTML += '<div class="strength-exercise-row" style="padding:var(--space-xs) 0">' +
+          '<span class="strength-exercise-check' + (ex.done ? ' done' : '') + '" onclick="App.toggleStrengthExercise(\'' + todayStr + '\',' + i + ');App.renderToday()"></span>' +
+          '<span style="font-size:var(--font-size-subhead);' + (ex.done ? 'text-decoration:line-through;color:var(--color-label-tertiary)' : '') + '">' +
+            (ex.name ? escapeHtml(ex.name) : '<span style="color:var(--color-label-tertiary)">未設定</span>') +
+          '</span>' +
+        '</div>';
+      }
+    }
+
+    return '<div class="today-strength">' +
+      '<div class="today-strength-header">💪 今日の筋トレ</div>' +
+      innerHTML +
+    '</div>';
   },
 
   // --- Render Plan ---
@@ -789,18 +827,144 @@ const App = {
       }
       html += '</ul></div>';
     }
-    document.getElementById('plan-content').innerHTML = html;
+    // Plan type tabs + content wrapper
+    const tabsHTML = '<div class="plan-type-tabs">' +
+      '<button class="plan-type-tab' + (this._planViewType === 'run' ? ' active' : '') + '" data-plan-type="run" onclick="App.switchPlanType(\'run\')">🏃 ラン</button>' +
+      '<button class="plan-type-tab' + (this._planViewType === 'strength' ? ' active' : '') + '" data-plan-type="strength" onclick="App.switchPlanType(\'strength\')">💪 筋トレ</button>' +
+    '</div>';
 
-    // Auto-scroll to current week
+    const strengthHTML = this.renderStrengthPlan();
+
+    document.getElementById('plan-content').innerHTML = tabsHTML +
+      '<div id="plan-run-content" style="display:' + (this._planViewType === 'run' ? 'block' : 'none') + '">' + html + '</div>' +
+      '<div id="plan-strength-content" style="display:' + (this._planViewType === 'strength' ? 'block' : 'none') + '">' + strengthHTML + '</div>';
+
+    // Auto-scroll to current week (for run plan)
+    if (this._planViewType === 'run') {
+      setTimeout(() => {
+        const runContent = document.getElementById('plan-run-content');
+        if (!runContent) return;
+        const week = this.getCurrentWeek();
+        if (week) {
+          const els = runContent.querySelectorAll('.plan-week');
+          const idx = this.state.plan.indexOf(week);
+          if (els[idx]) els[idx].scrollIntoView({ behavior: 'auto', block: 'start' });
+        }
+      }, 100);
+    }
+  },
+
+  // --- Strength Training Plan ---
+  getStrengthPlan() {
+    if (!this.state) return {};
+    if (!this.state.strengthPlan) this.state.strengthPlan = {};
+    return this.state.strengthPlan;
+  },
+
+  getStrengthDay(dateStr) {
+    const plan = this.getStrengthPlan();
+    return plan[dateStr] || [];
+  },
+
+  setStrengthDay(dateStr, exercises) {
+    if (!this.state) return;
+    if (!this.state.strengthPlan) this.state.strengthPlan = {};
+    if (!exercises || exercises.length === 0) {
+      delete this.state.strengthPlan[dateStr];
+    } else {
+      this.state.strengthPlan[dateStr] = exercises;
+    }
+    saveState(this.state);
+    if (typeof Social !== 'undefined' && Social.enabled) Social.syncToCloud(this.state);
+  },
+
+  addStrengthExercise(dateStr) {
+    const exercises = this.getStrengthDay(dateStr);
+    exercises.push({ name: '', done: false });
+    this.setStrengthDay(dateStr, exercises);
+    this.renderPlan();
+    // Focus the new input
     setTimeout(() => {
-      const planEl = document.getElementById('plan-content');
-      const week = this.getCurrentWeek();
-      if (week) {
-        const els = planEl.querySelectorAll('.plan-week');
-        const idx = this.state.plan.indexOf(week);
-        if (els[idx]) els[idx].scrollIntoView({ behavior: 'auto', block: 'start' });
+      const inputs = document.querySelectorAll('.strength-input-' + dateStr.replace(/-/g, ''));
+      if (inputs.length > 0) inputs[inputs.length - 1].focus();
+    }, 50);
+  },
+
+  removeStrengthExercise(dateStr, idx) {
+    const exercises = this.getStrengthDay(dateStr);
+    exercises.splice(idx, 1);
+    this.setStrengthDay(dateStr, exercises);
+    this.renderPlan();
+  },
+
+  toggleStrengthExercise(dateStr, idx) {
+    const exercises = this.getStrengthDay(dateStr);
+    if (exercises[idx]) {
+      exercises[idx].done = !exercises[idx].done;
+      this.setStrengthDay(dateStr, exercises);
+      this.renderPlan();
+      this.renderToday();
+    }
+  },
+
+  saveStrengthExerciseName(dateStr, idx, name) {
+    const exercises = this.getStrengthDay(dateStr);
+    if (exercises[idx]) {
+      exercises[idx].name = name;
+      this.setStrengthDay(dateStr, exercises);
+    }
+  },
+
+  renderStrengthPlan() {
+    if (!this.state || !this.state.plan) return '';
+
+    let html = '';
+    for (const week of this.state.plan) {
+      const label = 'Week ' + week.weekNum;
+      html += '<div class="plan-week"><div class="plan-week-header mt-lg">' + label + '</div><div class="mx">';
+
+      for (const day of week.days) {
+        const d = fromISO(day.date);
+        const dateLabel = (d.getMonth() + 1) + '/' + d.getDate();
+        const exercises = this.getStrengthDay(day.date);
+        const dateClass = 'strength-input-' + day.date.replace(/-/g, '');
+
+        html += '<div class="strength-day">' +
+          '<div class="strength-day-label">' +
+            '<div class="strength-day-name">' + day.dayJa + '</div>' +
+            '<div class="strength-day-date">' + dateLabel + '</div>' +
+          '</div>' +
+          '<div class="strength-exercises">';
+
+        if (exercises.length === 0) {
+          html += '<div style="display:flex;align-items:center;gap:var(--space-sm)">' +
+            '<span style="font-size:var(--font-size-caption1);color:var(--color-label-tertiary)">レスト</span>' +
+            '<button class="strength-add-btn" onclick="App.addStrengthExercise(\'' + day.date + '\')">+ 種目追加</button>' +
+          '</div>';
+        } else {
+          for (let i = 0; i < exercises.length; i++) {
+            const ex = exercises[i];
+            html += '<div class="strength-exercise-row">' +
+              '<span class="strength-exercise-check' + (ex.done ? ' done' : '') + '" onclick="App.toggleStrengthExercise(\'' + day.date + '\',' + i + ')"></span>' +
+              '<input type="text" class="strength-exercise-name ' + dateClass + '" value="' + escapeHtml(ex.name) + '" placeholder="種目名を入力" ' +
+                'onchange="App.saveStrengthExerciseName(\'' + day.date + '\',' + i + ',this.value)">' +
+              '<button class="strength-remove-btn" onclick="App.removeStrengthExercise(\'' + day.date + '\',' + i + ')">✕</button>' +
+            '</div>';
+          }
+          html += '<button class="strength-add-btn" onclick="App.addStrengthExercise(\'' + day.date + '\')">+ 種目追加</button>';
+        }
+
+        html += '</div></div>';
       }
-    }, 100);
+      html += '</div></div>';
+    }
+    return html;
+  },
+
+  // Get today's strength exercises for Today tab
+  getTodayStrength() {
+    const todayStr = toISO(today());
+    return this.getStrengthDay(todayStr);
   },
 
   // Get actual distance for a date (null if not recorded)
