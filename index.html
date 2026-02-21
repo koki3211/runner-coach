@@ -808,12 +808,12 @@
     .friend-plan-header {
       position: sticky; top: 0; z-index: 10;
       background: var(--color-bg-primary);
-      padding: var(--space-lg) var(--space-base) var(--space-md);
+      padding: calc(var(--space-lg) + var(--safe-area-top)) var(--space-base) var(--space-md);
       border-bottom: 0.5px solid var(--color-separator);
       text-align: center;
     }
     .friend-plan-close {
-      position: absolute; top: var(--space-md); right: var(--space-base);
+      position: absolute; top: calc(var(--space-md) + var(--safe-area-top)); right: var(--space-base);
       width: 32px; height: 32px; border-radius: 50%;
       background: var(--color-fill-tertiary); border: none;
       font-size: 16px; cursor: pointer; display: flex;
