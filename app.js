@@ -697,10 +697,18 @@ const App = {
     const heroDetail = w.dist > 0 ? '合計 ' + formatDist(w.dist, w.type) + 'km・推定 ' + estimateTime(w.dist, w.pace) : '休養日';
     const commentHTML = w.comment ? '<div class="workout-comment">' + escapeHtml(w.comment) + '</div>' : '';
 
-    const btnHTML = w.type === 'rest' ? ''
-      : done
-        ? '<button class="start-btn completed-btn">\u2713 完了済み</button>'
-        : '<button class="start-btn" onclick="App.completeToday()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>トレーニング完了</button>';
+    const isActive = this.state.activeWorkout && this.state.activeWorkout.date === todayStr;
+    let btnHTML = '';
+    if (w.type !== 'rest') {
+      if (done) {
+        btnHTML = '<button class="start-btn completed-btn">\u2713 完了済み</button>';
+      } else if (isActive) {
+        btnHTML = '<button class="start-btn active-btn" onclick="App.completeToday()">' +
+          '<span class="active-pulse"></span>トレーニング完了</button>';
+      } else {
+        btnHTML = '<button class="start-btn" onclick="App.startWorkout()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>スタート</button>';
+      }
+    }
 
     // Race countdown
     let countdownHTML = '';
@@ -1118,7 +1126,7 @@ const App = {
 
         // Today's workout from friend's plan
         const friendWorkout = findTodayWorkout(f.plan, todayStr);
-        const todayHTML = buildTodayStatusHTML(friendWorkout, isDone);
+        const todayHTML = buildTodayStatusHTML(friendWorkout, isDone, f.activeWorkout);
 
         // Week dots
         const monday = getMonday(new Date());
@@ -1194,7 +1202,7 @@ const App = {
     const overlay = document.getElementById('friend-plan-overlay');
     overlay.innerHTML =
       '<div class="friend-plan-header">' +
-        '<button class="friend-plan-close" onclick="App.closeFriendPlan()">\u2715</button>' +
+        '<div class="friend-plan-header-row"><button class="friend-plan-close" onclick="App.closeFriendPlan()">\u2715</button></div>' +
         '<div class="friend-plan-name">' + escapeHtml(friend.displayName || friend.email || '友達') + ' のプラン</div>' +
         '<div class="friend-plan-subtitle">' + escapeHtml(subtitle) + '</div>' +
       '</div>' +
@@ -1448,16 +1456,33 @@ const App = {
     if (typeof Social !== 'undefined' && Social.enabled) Social.syncToCloud(this.state);
   },
 
+  startWorkout() {
+    const todayStr = toISO(today());
+    const workout = this.getTodayWorkout();
+    const name = workout ? (TYPE_JA[workout.type] || workout.name) : 'ワークアウト';
+    const type = workout ? workout.type : 'jog';
+    this.state.activeWorkout = { date: todayStr, workoutName: name, type: type, startedAt: Date.now() };
+    saveState(this.state);
+    this.renderToday();
+    if (typeof Social !== 'undefined' && Social.enabled) {
+      Social.setActiveWorkout({ workoutName: name, type: type });
+    }
+  },
+
   completeToday() {
     const todayStr = toISO(today());
     const workout = this.getTodayWorkout();
     if (!this.state.completed) this.state.completed = {};
     this.state.completed[todayStr] = true;
+    this.state.activeWorkout = null;
     saveState(this.state);
     this.showCompletion(workout);
     this.renderToday();
     this.renderPlan();
-    if (typeof Social !== 'undefined' && Social.enabled) Social.syncToCloud(this.state);
+    if (typeof Social !== 'undefined' && Social.enabled) {
+      Social.clearActiveWorkout();
+      Social.syncToCloud(this.state);
+    }
   },
 
   // --- Completion Overlay ---
@@ -1523,13 +1548,22 @@ function formatWorkoutDescription(day) {
   return name;
 }
 
-function buildTodayStatusHTML(workout, done) {
+function buildTodayStatusHTML(workout, done, activeWorkout) {
   if (!workout) return '<span style="color:var(--color-label-secondary)">—</span>';
   const type = TYPE_MIGRATION[workout.type] || workout.type;
   if (type === 'rest') return '<span style="color:var(--color-label-secondary)">レスト</span>';
   const name = TYPE_JA[type] || workout.name;
-  if (done) return '<span style="color:var(--color-success);font-weight:600">' + escapeHtml(name) + '完了</span>';
-  return '<span style="color:var(--color-danger);font-weight:600">' + escapeHtml(name) + '未完了</span>';
+  if (done) return '<span style="color:var(--color-success);font-weight:600">\u2713 ' + escapeHtml(name) + '完了</span>';
+  // Active workout: check if startedAt is within 3 hours
+  if (activeWorkout && activeWorkout.startedAt) {
+    const startMs = activeWorkout.startedAt.toDate ? activeWorkout.startedAt.toDate().getTime() : activeWorkout.startedAt;
+    const elapsedMin = Math.floor((Date.now() - startMs) / 60000);
+    if (elapsedMin < 180) {
+      const label = elapsedMin < 1 ? 'たった今' : elapsedMin + '分前から';
+      return '<span class="friend-active-status"><span class="active-dot"></span>' + escapeHtml(activeWorkout.workoutName || name) + '中 <span class="active-elapsed">' + label + '</span></span>';
+    }
+  }
+  return '<span style="color:var(--color-label-tertiary)">' + escapeHtml(name) + '</span>';
 }
 
 function buildSteps(steps) {

@@ -214,6 +214,25 @@ const Social = {
     return streak;
   },
 
+  // --- Active Workout ---
+  async setActiveWorkout(data) {
+    if (!this.enabled || !this.currentUser) return;
+    await this.db.collection('users').doc(this.currentUser.uid).set({
+      activeWorkout: {
+        workoutName: data.workoutName || '',
+        type: data.type || 'jog',
+        startedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }
+    }, { merge: true });
+  },
+
+  async clearActiveWorkout() {
+    if (!this.enabled || !this.currentUser) return;
+    await this.db.collection('users').doc(this.currentUser.uid).set({
+      activeWorkout: null
+    }, { merge: true });
+  },
+
   // --- Week completion count ---
   calcWeekProgress(completed) {
     if (!completed) return { done: 0, total: 7 };
