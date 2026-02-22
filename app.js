@@ -623,34 +623,6 @@ const App = {
 
     const w = workout || week.days[0];
 
-    // Steps
-    let stepsHTML = '';
-    if (w.type === 'interval' && w.detail) {
-      stepsHTML = buildSteps([
-        { label: 'ウォームアップ', meta: 'ゆっくりジョグ', pace: paces.jog, color: 'var(--color-easy-run)' },
-        { label: w.detail.reps + ' ダッシュ', meta: '間に' + w.detail.rest + '休息', pace: paces.interval, color: 'var(--color-interval)' },
-        { label: 'クールダウン', meta: 'ゆっくりジョグ', pace: paces.jog, color: 'var(--color-easy-run)' }
-      ]);
-    } else if (w.type === 'tempo') {
-      const tempoKm = roundKm(Math.max(w.dist - 4, 2));
-      stepsHTML = buildSteps([
-        { label: 'ウォームアップ', meta: '2km ジョグ', pace: paces.jog, color: 'var(--color-easy-run)' },
-        { label: 'テンポ走', meta: tempoKm + 'km', pace: paces.tempo, color: 'var(--color-tempo-run)' },
-        { label: 'クールダウン', meta: '2km ジョグ', pace: paces.jog, color: 'var(--color-easy-run)' }
-      ]);
-    } else if (w.type === 'long') {
-      const third = roundKm(w.dist / 3);
-      stepsHTML = buildSteps([
-        { label: 'イージースタート', meta: third + 'km', pace: paces.jog, color: 'var(--color-easy-run)' },
-        { label: 'ステディペース', meta: third + 'km', pace: paces.long, color: 'var(--color-long-run)' },
-        { label: 'イージーフィニッシュ', meta: third + 'km', pace: paces.jog, color: 'var(--color-easy-run)' }
-      ]);
-    } else if (w.type === 'jog') {
-      stepsHTML = buildSteps([
-        { label: w.name, meta: Math.round(w.dist) + 'km 一定ペース', pace: w.pace, color: TYPE_COLORS[w.type] }
-      ]);
-    }
-
     // Week scroll
     const weekScrollHTML = week.days.map(d => {
       const date = fromISO(d.date);
@@ -697,9 +669,10 @@ const App = {
     const heroDetail = w.dist > 0 ? '合計 ' + formatDist(w.dist, w.type) + 'km・推定 ' + estimateTime(w.dist, w.pace) : '休養日';
     const commentHTML = w.comment ? '<div class="workout-comment">' + escapeHtml(w.comment) + '</div>' : '';
 
+    const isRaceDay = this.state.raceDate && todayStr === this.state.raceDate;
     const isActive = this.state.activeWorkout && this.state.activeWorkout.date === todayStr;
     let btnHTML = '';
-    if (w.type !== 'rest') {
+    if (!isRaceDay && w.type !== 'rest') {
       if (done) {
         btnHTML = '<button class="start-btn completed-btn">\u2713 完了済み</button>';
       } else if (isActive) {
@@ -732,15 +705,30 @@ const App = {
       }
     }
 
-    document.getElementById('today-content').innerHTML = countdownHTML +
-      '<div class="today-hero type-' + w.type + '">' +
+    // Hero card
+    let heroHTML;
+    if (isRaceDay) {
+      heroHTML = '<div class="today-hero" style="background:linear-gradient(135deg,#FF3B30,#FF9500)">' +
+        '<div class="workout-type">RACE DAY</div>' +
+        '<div class="workout-name">\u{1F3C1} 大会当日</div>' +
+        '<div class="workout-detail">' + escapeHtml(this.state.raceName) + '</div>' +
+      '</div>';
+    } else {
+      heroHTML = '<div class="today-hero type-' + w.type + '">' +
         '<div class="workout-type">' + (TYPE_JA[w.type] || w.type) + '</div>' +
         '<div class="workout-name">' + escapeHtml(w.name) + '</div>' +
         '<div class="workout-detail">' + heroDetail + '</div>' +
         commentHTML +
         btnHTML +
-      '</div>' +
-      (stepsHTML ? '<div class="section"><div class="section-header">メニュー詳細</div><div class="card"><ul class="workout-steps">' + stepsHTML + '</ul></div></div>' : '') +
+      '</div>';
+    }
+
+    // Training friends mini cards
+    const trainingFriendsHTML = this.buildTrainingFriendsHTML();
+
+    document.getElementById('today-content').innerHTML = countdownHTML +
+      heroHTML +
+      trainingFriendsHTML +
       '<div class="section" style="padding-top:0"><div class="section-header mx">今週のプラン</div><div class="week-scroll">' + weekScrollHTML + '</div></div>' +
       '<div class="section" style="padding-top:0"><div class="section-header">今週の進捗</div><div class="card">' +
         '<div class="progress-section">' +
@@ -761,6 +749,36 @@ const App = {
         '<div class="text-sm text-secondary" style="text-align:center;margin-top:var(--space-xs)">実績 / 予定（km）</div>' +
       '</div></div>' +
       this.buildTodayStrengthHTML();
+  },
+
+  buildTrainingFriendsHTML() {
+    if (!this.friendsData || this.friendsData.length === 0) return '';
+    const activeFriends = this.friendsData.filter(f => isActiveWorkout(f.activeWorkout));
+    if (activeFriends.length === 0) return '';
+
+    const cards = activeFriends.map(f => {
+      const colors = ['#FF6B6B,#FF3B30', '#5AC8FA,#007AFF', '#AF52DE,#5856D6', '#34C759,#248A3D', '#FF9500,#FF6B00'];
+      const color = colors[Math.abs(hashStr(f.uid)) % colors.length];
+      const initial = (f.displayName || f.email || '?')[0].toUpperCase();
+      const avatar = f.photoURL
+        ? '<img src="' + escapeHtml(f.photoURL) + '" class="training-friend-avatar">'
+        : '<div class="training-friend-avatar-placeholder" style="background:linear-gradient(135deg,' + color + ')">' + escapeHtml(initial) + '</div>';
+      const startMs = f.activeWorkout.startedAt.toDate ? f.activeWorkout.startedAt.toDate().getTime() : f.activeWorkout.startedAt;
+      const elapsedMin = Math.floor((Date.now() - startMs) / 60000);
+      const elapsed = elapsedMin < 1 ? 'たった今' : elapsedMin + '分前\u301c';
+      const workoutName = f.activeWorkout.workoutName || 'トレーニング';
+
+      return '<div class="training-friend-mini">' +
+        '<div class="training-friend-pulse"></div>' +
+        avatar +
+        '<div class="training-friend-body">' +
+          '<div class="training-friend-name">' + escapeHtml(f.displayName || '友達') + '</div>' +
+          '<div class="training-friend-detail">' + escapeHtml(workoutName) + '中・' + elapsed + '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    return '<div class="training-friends-banner">' + cards + '</div>';
   },
 
   buildTodayStrengthHTML() {
@@ -806,6 +824,18 @@ const App = {
         const done = this.isCompleted(day.date);
         const d = fromISO(day.date);
         const dateLabel = (d.getMonth() + 1) + '/' + d.getDate();
+        const isRaceDay = this.state.raceDate && day.date === this.state.raceDate;
+
+        if (isRaceDay) {
+          html += '<li class="plan-item plan-item-race">' +
+            '<span class="plan-dot" style="background:var(--color-interval)"></span>' +
+            '<span class="plan-day">' + day.dayJa + '</span>' +
+            '<span class="plan-date">' + dateLabel + '</span>' +
+            '<span class="plan-name plan-race-label">\u{1F3C1} 大会当日</span>' +
+          '</li>';
+          continue;
+        }
+
         const commentBadge = day.comment ? '<span class="plan-comment-badge" title="' + escapeHtml(day.comment) + '">\u2026</span>' : '';
 
         // Build detailed workout description
@@ -1107,8 +1137,19 @@ const App = {
     if (friends.length === 0) {
       listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">\u{1F465}</div>' +
         '<div class="empty-text">まだ仲間がいません<br>IDで友達を追加しましょう</div></div>';
+      // Re-render Today tab to update training friends
+      if (this.state && this.state.plan) this.renderToday();
       return;
     }
+
+    // Sort: active training first, then by streak (descending)
+    friends.sort((a, b) => {
+      const aActive = isActiveWorkout(a.activeWorkout);
+      const bActive = isActiveWorkout(b.activeWorkout);
+      if (aActive && !bActive) return -1;
+      if (!aActive && bActive) return 1;
+      return Social.calcStreak(b.completed) - Social.calcStreak(a.completed);
+    });
 
     const todayStr = toISO(today());
     listEl.innerHTML = '<div class="section"><div class="section-header">仲間 (' + friends.length + ')</div>' +
@@ -1139,10 +1180,15 @@ const App = {
 
         const hasPlan = f.plan && f.plan.length > 0;
         const clickAttr = hasPlan ? ' onclick="App.showFriendPlan(\'' + f.uid + '\')"' : '';
+        const isActive = isActiveWorkout(f.activeWorkout);
+        const activeClass = isActive ? ' friend-active' : '';
+        const activeBadge = isActive ? ' <span class="friend-active-badge">\u{1F3C3} トレーニング中</span>' : '';
+        const friendIdHTML = f.shortId ? '<div class="friend-id-display">ID: ' + escapeHtml(f.shortId) + '</div>' : '';
 
-        return '<div class="friend-card"' + clickAttr + '>' + photo +
+        return '<div class="friend-card' + activeClass + '"' + clickAttr + '>' + photo +
           '<div class="friend-info">' +
-            '<div class="friend-name">' + escapeHtml(f.displayName || f.email) + '</div>' +
+            '<div class="friend-name">' + escapeHtml(f.displayName || f.email) + activeBadge + '</div>' +
+            friendIdHTML +
             '<div class="friend-goal">' + escapeHtml(goalText) + '</div>' +
             '<div class="friend-today">' + todayHTML + '</div>' +
             '<div class="friend-week">' + dots + '</div>' +
@@ -1150,6 +1196,9 @@ const App = {
           '<div class="friend-streak"><div class="streak-num">' + streak + '</div><div class="streak-label">日連続</div></div>' +
         '</div>';
       }).join('') + '</div>';
+
+    // Re-render Today tab to show training friends
+    if (this.state && this.state.plan) this.renderToday();
   },
 
   // --- Friend Plan Viewer ---
@@ -1204,6 +1253,7 @@ const App = {
       '<div class="friend-plan-header">' +
         '<div class="friend-plan-header-row"><button class="friend-plan-close" onclick="App.closeFriendPlan()">\u2715</button></div>' +
         '<div class="friend-plan-name">' + escapeHtml(friend.displayName || friend.email || '友達') + ' のプラン</div>' +
+        (friend.shortId ? '<div style="font-size:var(--font-size-caption1);color:var(--color-label-tertiary);margin-top:2px;letter-spacing:0.5px">ID: ' + escapeHtml(friend.shortId) + '</div>' : '') +
         '<div class="friend-plan-subtitle">' + escapeHtml(subtitle) + '</div>' +
       '</div>' +
       '<div class="friend-plan-body">' + planHTML + '</div>';
@@ -1516,6 +1566,12 @@ function calcStreak(completed) {
     d.setDate(d.getDate() - 1);
   }
   return streak;
+}
+
+function isActiveWorkout(aw) {
+  if (!aw || !aw.startedAt) return false;
+  const startMs = aw.startedAt.toDate ? aw.startedAt.toDate().getTime() : aw.startedAt;
+  return (Date.now() - startMs) < 180 * 60000; // 3 hours
 }
 
 function findTodayWorkout(plan, todayStr) {

@@ -68,9 +68,21 @@ const Social = {
   async getOrCreateUserId() {
     if (!this.enabled || !this.currentUser) return null;
     const uid = this.currentUser.uid;
+    const localKey = 'runner-coach-shortId-' + uid;
+    const localId = localStorage.getItem(localKey);
     const doc = await this.db.collection('users').doc(uid).get();
-    if (doc.exists && doc.data().shortId) return doc.data().shortId;
+    if (doc.exists && doc.data().shortId) {
+      const shortId = doc.data().shortId;
+      localStorage.setItem(localKey, shortId);
+      return shortId;
+    }
+    // Restore from localStorage if Firestore lost it
+    if (localId) {
+      await this.db.collection('users').doc(uid).set({ shortId: localId }, { merge: true });
+      return localId;
+    }
     const shortId = this.generateShortId();
+    localStorage.setItem(localKey, shortId);
     await this.db.collection('users').doc(uid).set({ shortId }, { merge: true });
     return shortId;
   },

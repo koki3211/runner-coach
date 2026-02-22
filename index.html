@@ -993,6 +993,66 @@
       color: var(--color-label-secondary);
     }
 
+    /* Training Friends Mini Cards (Today tab) */
+    .training-friends-banner {
+      padding: var(--space-sm) var(--space-base);
+    }
+    .training-friend-mini {
+      display: flex; align-items: center; gap: var(--space-sm);
+      padding: var(--space-sm) var(--space-md);
+      background: linear-gradient(135deg, rgba(52,199,89,0.08), rgba(0,122,255,0.06));
+      border: 1px solid rgba(52,199,89,0.2);
+      border-radius: var(--radius-lg);
+      margin-bottom: var(--space-xs);
+    }
+    .training-friend-pulse {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--color-success); flex-shrink: 0;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    .training-friend-avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      object-fit: cover; flex-shrink: 0;
+    }
+    .training-friend-avatar-placeholder {
+      width: 32px; height: 32px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-weight: var(--font-weight-bold);
+      font-size: var(--font-size-caption1); flex-shrink: 0;
+    }
+    .training-friend-body { flex: 1; min-width: 0; }
+    .training-friend-name {
+      font-size: var(--font-size-footnote);
+      font-weight: var(--font-weight-semibold);
+    }
+    .training-friend-detail {
+      font-size: var(--font-size-caption1);
+      color: var(--color-success);
+      font-weight: var(--font-weight-semibold);
+    }
+
+    /* Active Friend Card Highlight (Team tab) */
+    .friend-card.friend-active {
+      border: 1.5px solid var(--color-success);
+      box-shadow: 0 0 0 3px rgba(52,199,89,0.12), var(--shadow-card);
+    }
+    .friend-active-badge {
+      display: inline-flex; align-items: center; gap: 3px;
+      padding: 1px 6px; margin-left: 6px;
+      background: var(--color-success); color: #fff;
+      border-radius: var(--radius-full);
+      font-size: var(--font-size-caption2); font-weight: var(--font-weight-bold);
+      vertical-align: middle;
+    }
+
+    /* Friend ID display */
+    .friend-id-display {
+      font-family: var(--font-family-data);
+      font-size: var(--font-size-caption2);
+      color: var(--color-label-tertiary);
+      letter-spacing: 0.5px;
+    }
+
     /* Utility */
     .mx { margin-left: var(--space-base); margin-right: var(--space-base); }
 
