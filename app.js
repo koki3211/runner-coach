@@ -992,6 +992,8 @@ const App = {
   },
 
   // --- Render Plan ---
+  _scrollToDate: null,
+
   renderPlan() {
     if (!this.state || !this.state.plan) return;
     const dist = this.state.raceType === 'half' ? '21.1km' : '42.195km';
@@ -1044,7 +1046,7 @@ const App = {
         }
 
         const keyClass = day.isKeyWorkout ? ' key-workout' : '';
-        html += '<li class="plan-item' + keyClass + '" onclick="App.openEditWorkout(\'' + day.date + '\')" ' +
+        html += '<li class="plan-item' + keyClass + '" data-date="' + day.date + '" onclick="App.openEditWorkout(\'' + day.date + '\')" ' +
           'ontouchstart="App._moveStartTouch(event,\'' + day.date + '\')" ontouchend="App._moveCancelTouch()" ontouchmove="App._moveCancelTouch()" ' +
           'onmousedown="App._moveStartTouch(event,\'' + day.date + '\')" onmouseup="App._moveCancelTouch()" onmouseleave="App._moveCancelTouch()">' +
           '<span class="plan-dot" style="background:' + (TYPE_COLORS[day.type] || 'var(--color-fill-primary)') + '"></span>' +
@@ -1070,9 +1072,17 @@ const App = {
 
     // Auto-scroll to current week (for run plan)
     if (this._planViewType === 'run') {
+      const scrollDate = this._scrollToDate;
+      this._scrollToDate = null;
       setTimeout(() => {
         const runContent = document.getElementById('plan-run-content');
         if (!runContent) return;
+        // If a specific date was requested, scroll to that item
+        if (scrollDate) {
+          const el = runContent.querySelector('.plan-item[data-date="' + scrollDate + '"]');
+          if (el) { el.scrollIntoView({ behavior: 'auto', block: 'center' }); return; }
+        }
+        // Default: scroll to current week
         const week = this.getCurrentWeek();
         if (week) {
           const els = runContent.querySelectorAll('.plan-week');
@@ -1223,7 +1233,7 @@ const App = {
     const workout = this.getTodayWorkout();
     const done = this.isCompleted(todayStr);
     const completed = this.state ? (this.state.completed || {}) : {};
-    const streak = calcStreak(completed);
+    const streak = calcStreak(completed, this.state ? this.state.plan : null);
     const goalText = this.state.raceName
       ? this.state.raceName + (this.state.targetTime ? '・目標 ' + this.state.targetTime : '')
       : '目標未設定';
@@ -1663,21 +1673,27 @@ const App = {
     const srcDd = fromISO(dateStr);
     const srcLabel = srcDay.dayJa + ' ' + (srcDd.getMonth() + 1) + '/' + srcDd.getDate();
 
-    // Build list of nearby days (same week + prev/next week range, ~21 days)
+    // Build list of nearby days centered on source (~21 days)
     const start = Math.max(0, srcIdx - 10);
     const end = Math.min(allDays.length, srcIdx + 11);
     let listHTML = '';
     for (let i = start; i < end; i++) {
       const d = allDays[i];
-      if (d.date === dateStr) continue;
       const dd = fromISO(d.date);
       const label = d.dayJa + ' ' + (dd.getMonth() + 1) + '/' + dd.getDate();
       const desc = formatWorkoutDescription(d);
-      const selected = '';
-      listHTML += '<li class="move-target-item" onclick="App._executeMove(\'' + dateStr + '\',\'' + d.date + '\')">' +
-        '<span class="move-target-date">' + label + '</span>' +
-        '<span class="move-target-desc">' + escapeHtml(desc) + '</span>' +
-        '</li>';
+      if (d.date === dateStr) {
+        // Source day: highlighted, not clickable
+        listHTML += '<li class="move-target-item move-source-highlight" id="move-source-item">' +
+          '<span class="move-target-date">' + label + '</span>' +
+          '<span class="move-target-desc">' + escapeHtml(desc) + '</span>' +
+          '</li>';
+      } else {
+        listHTML += '<li class="move-target-item" onclick="App._executeMove(\'' + dateStr + '\',\'' + d.date + '\')">' +
+          '<span class="move-target-date">' + label + '</span>' +
+          '<span class="move-target-desc">' + escapeHtml(desc) + '</span>' +
+          '</li>';
+      }
     }
 
     const overlay = document.getElementById('edit-overlay');
@@ -1686,13 +1702,17 @@ const App = {
       '<div class="edit-sheet">' +
         '<div class="edit-sheet-handle"></div>' +
         '<div class="edit-sheet-title">移動先を選択</div>' +
-        '<div class="move-source-label">' + escapeHtml(formatWorkoutDescription(srcDay)) + '（' + srcLabel + '）</div>' +
-        '<ul class="move-target-list">' + listHTML + '</ul>' +
+        '<ul class="move-target-list" id="move-target-list">' + listHTML + '</ul>' +
         '<div class="edit-actions">' +
           '<button class="edit-cancel-btn" onclick="App.closeMoveSheet()">キャンセル</button>' +
         '</div>' +
       '</div>';
     overlay.classList.add('show');
+    // Scroll source item to center of list
+    setTimeout(() => {
+      const srcEl = document.getElementById('move-source-item');
+      if (srcEl) srcEl.scrollIntoView({ block: 'center' });
+    }, 50);
   },
 
   closeMoveSheet() {
@@ -1749,6 +1769,7 @@ const App = {
 
     saveState(this.state);
     this.closeMoveSheet();
+    this._scrollToDate = destDate;
     this.renderPlan();
   },
 
@@ -1827,6 +1848,7 @@ const App = {
     }
     saveState(this.state);
     this.closeEditWorkout();
+    this._scrollToDate = dateStr;
     this.renderPlan();
     this.renderToday();
     if (typeof Social !== 'undefined' && Social.enabled) Social.syncToCloud(this.state);
@@ -1892,14 +1914,25 @@ const App = {
 };
 
 // --- Helpers ---
-function calcStreak(completed) {
+function calcStreak(completed, plan) {
   if (!completed) return 0;
+  // Build a set of rest dates from the plan
+  const restDates = new Set();
+  if (plan) {
+    for (const week of plan) {
+      for (const day of week.days) {
+        if (day.type === 'rest') restDates.add(day.date);
+      }
+    }
+  }
   let streak = 0;
   const d = new Date();
   d.setHours(0, 0, 0, 0);
-  if (!completed[toISO(d)]) d.setDate(d.getDate() - 1);
-  while (completed[toISO(d)]) {
-    streak++;
+  // Start from today or yesterday
+  if (!completed[toISO(d)] && !restDates.has(toISO(d))) d.setDate(d.getDate() - 1);
+  while (completed[toISO(d)] || restDates.has(toISO(d))) {
+    if (completed[toISO(d)]) streak++;
+    // Rest days are skipped (don't break streak, don't count)
     d.setDate(d.getDate() - 1);
   }
   return streak;
