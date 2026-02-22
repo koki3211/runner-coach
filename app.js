@@ -1313,7 +1313,7 @@ const App = {
       '<div class="friend-plan-header">' +
         '<div class="friend-plan-header-row"><button class="friend-plan-close" onclick="App.closeFriendPlan()">\u2715</button></div>' +
         '<div class="friend-plan-name">' + escapeHtml(friend.displayName || friend.email || '友達') + ' のプラン</div>' +
-        (friend.shortId ? '<div style="font-size:var(--font-size-caption1);color:var(--color-label-secondary);margin-top:2px;letter-spacing:0.5px">ID: ' + escapeHtml(friend.shortId) + '</div>' : '') +
+        (friend.shortId ? '<div style="font-size:var(--font-size-caption1);color:var(--color-label-primary);font-weight:600;margin-top:2px;letter-spacing:0.5px">ID: ' + escapeHtml(friend.shortId) + '</div>' : '') +
         '<div class="friend-plan-subtitle">' + escapeHtml(subtitle) + '</div>' +
       '</div>' +
       '<div class="friend-plan-body">' + planHTML + '</div>';
