@@ -479,6 +479,24 @@ const App = {
         // Local has data — sync to cloud
         Social.syncToCloud(this.state);
       }
+      // Process invite link if present
+      this._processInviteParam();
+    }
+  },
+
+  async _processInviteParam() {
+    const params = new URLSearchParams(location.search);
+    const inviteUid = params.get('invite');
+    if (!inviteUid) return;
+    // Clear the param from URL to avoid re-processing
+    const cleanUrl = location.origin + location.pathname;
+    history.replaceState(null, '', cleanUrl);
+    if (!Social.currentUser || inviteUid === Social.currentUser.uid) return;
+    const added = await Social.acceptInvite(inviteUid);
+    if (added) {
+      this.switchTab('team', document.querySelector('[data-tab="team"]'));
+      this.renderFriends();
+      alert('友達になりました！');
     }
   },
 
@@ -1303,13 +1321,17 @@ const App = {
       return;
     }
 
-    // Logged in — show: friend search → self card → friends list
+    // Logged in — show: friend search + invite → self card → friends list
     const searchHTML =
       '<div class="section" style="padding-bottom:0"><div class="section-header">友達を追加</div>' +
       '<div class="card"><div class="friend-add-row">' +
       '<input type="text" id="friend-id-input" placeholder="友達のIDを入力" class="form-input" style="flex:1" maxlength="8">' +
       '<button class="cta-btn" style="width:auto;margin:0;padding:var(--space-sm) var(--space-base);font-size:var(--font-size-subhead)" onclick="App.addFriend()">検索</button>' +
-      '</div></div></div>';
+      '</div>' +
+      '<button class="invite-btn" onclick="App.copyInviteLink()">' +
+        '<span class="invite-btn-icon">🔗</span>友達を招待' +
+      '</button>' +
+      '</div></div>';
 
     container.innerHTML = searchHTML + selfCardHTML +
       '<div id="friend-requests"></div>' +
@@ -1538,6 +1560,34 @@ const App = {
   async declineFriend(reqId) {
     await Social.declineRequest(reqId);
     this.renderFriends();
+  },
+
+  copyInviteLink() {
+    if (!Social.currentUser) return;
+    const base = location.origin + location.pathname;
+    const url = base + '?invite=' + Social.currentUser.uid;
+    if (navigator.share) {
+      navigator.share({ title: 'Runner Coach', text: '一緒にトレーニングしよう！', url: url }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(url).then(() => {
+        this._showInviteCopied();
+      }).catch(() => {
+        // Fallback
+        prompt('このURLを友達に共有してください:', url);
+      });
+    }
+  },
+
+  _showInviteCopied() {
+    const btn = document.querySelector('.invite-btn');
+    if (!btn) return;
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<span class="invite-btn-icon">✓</span>コピーしました！';
+    btn.classList.add('invite-btn-copied');
+    setTimeout(() => {
+      btn.innerHTML = orig;
+      btn.classList.remove('invite-btn-copied');
+    }, 2000);
   },
 
   // --- Edit Workout ---

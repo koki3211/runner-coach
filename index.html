@@ -474,6 +474,19 @@
     .friend-add-row {
       display: flex; gap: var(--space-sm); padding: 0 var(--space-base);
     }
+    .invite-btn {
+      display: flex; align-items: center; justify-content: center; gap: var(--space-xs);
+      width: 100%; padding: var(--space-sm);
+      margin-top: var(--space-sm);
+      border: none; border-radius: var(--radius-md);
+      background: var(--color-fill-tertiary); color: var(--color-brand-primary);
+      font-size: var(--font-size-subhead); font-weight: var(--font-weight-semibold);
+      font-family: var(--font-family-body); cursor: pointer;
+      transition: background var(--duration-fast), transform var(--duration-fast);
+    }
+    .invite-btn:active { transform: scale(0.97); }
+    .invite-btn-copied { color: var(--color-success); }
+    .invite-btn-icon { font-size: 16px; }
     .login-btn {
       display: flex; align-items: center; justify-content: center; gap: var(--space-sm);
       width: 100%; padding: var(--space-md); margin: var(--space-base);
