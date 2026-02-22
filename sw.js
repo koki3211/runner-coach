@@ -1,8 +1,8 @@
-const CACHE = 'runner-coach-v29';
+const CACHE = 'runner-coach-v30';
 const ASSETS = [
   './', './index.html', './app.js', './firebase-config.js', './social.js',
   './design-tokens/variables.css', './design-tokens/font-family.css',
-  './manifest.json', './icon.svg'
+  './manifest.json', './RuCrew_icon.png'
 ];
 
 // Firebase/Google domains — always go to network
