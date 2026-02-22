@@ -725,6 +725,10 @@
       font-family: var(--font-family-data);
       color: var(--color-label-tertiary); flex-shrink: 0;
     }
+    .plan-item-today {
+      border-left: 3px solid var(--color-brand-primary);
+      background: rgba(0,122,255,0.05);
+    }
     .plan-item-race {
       background: linear-gradient(135deg, rgba(255,59,48,0.06), rgba(255,149,0,0.06)) !important;
     }
@@ -938,9 +942,14 @@
     }
 
     /* Plan Type Tabs (Run / Strength) */
+    .plan-type-tabs-wrap {
+      position: sticky; top: 0; z-index: 50;
+      background: var(--color-bg-secondary);
+      padding: var(--space-sm) var(--space-base) var(--space-sm);
+    }
     .plan-type-tabs {
-      display: flex; gap: 0; margin: var(--space-base);
-      background: var(--color-fill-tertiary); border-radius: var(--radius-md); padding: 3px;
+      display: flex; gap: 0;
+      padding: 3px; background: var(--color-fill-tertiary); border-radius: var(--radius-md);
     }
     .plan-type-tab {
       flex: 1; padding: var(--space-sm) var(--space-base);
@@ -988,28 +997,41 @@
     }
     .strength-pattern-input { flex: 1; }
 
-    /* Today Strength Training Section */
-    .today-strength {
-      margin: 0 var(--space-base); padding: var(--space-base);
-      margin-top: var(--space-sm);
-      background: var(--color-bg-primary); border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-card);
+    /* Today Strength Training Card — hero style */
+    .today-strength-hero {
+      color: #fff; border-radius: var(--radius-xl);
+      padding: var(--space-lg) var(--space-xl);
+      margin: var(--space-sm) var(--space-base) 0;
+      position: relative; overflow: hidden;
+      background: linear-gradient(135deg, #AF52DE, #5856D6);
     }
-    .today-strength-header {
-      display: flex; align-items: center; justify-content: space-between;
-      font-size: var(--font-size-headline); font-weight: var(--font-weight-semibold);
+    .today-strength-hero::after {
+      content: ""; position: absolute; top: -30%; right: -20%;
+      width: 160px; height: 160px; border-radius: 50%;
+      background: rgba(255,255,255,0.08);
     }
-    .today-strength-btn {
-      padding: var(--space-xs) var(--space-md);
-      border: 1.5px solid var(--color-brand-primary); border-radius: var(--radius-pill);
-      background: none; color: var(--color-brand-primary);
+    .today-strength-hero .strength-hero-type {
       font-size: var(--font-size-caption1); font-weight: var(--font-weight-semibold);
-      font-family: var(--font-family-body); cursor: pointer;
-      transition: all var(--duration-fast) var(--easing-spring);
+      text-transform: uppercase; letter-spacing: 1px; opacity: 0.85;
     }
-    .today-strength-btn:active { transform: scale(0.95); }
-    .today-strength-btn.done {
-      background: var(--color-success); border-color: var(--color-success); color: #fff;
+    .today-strength-hero .strength-hero-name {
+      font-family: var(--font-family-display);
+      font-size: var(--font-size-title2); font-weight: var(--font-weight-bold);
+      margin-top: var(--space-2xs); line-height: var(--line-height-tight);
+    }
+    .today-strength-hero .strength-hero-btn {
+      display: inline-flex; align-items: center; gap: var(--space-sm);
+      margin-top: var(--space-md); padding: var(--space-sm) var(--space-xl);
+      background: rgba(255,255,255,0.22); backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.3); border-radius: var(--radius-full);
+      color: #fff; font-family: var(--font-family-body);
+      font-size: var(--font-size-subhead); font-weight: var(--font-weight-semibold);
+      cursor: pointer; transition: transform var(--duration-fast) var(--easing-spring);
+    }
+    .today-strength-hero .strength-hero-btn:active { transform: scale(0.95); }
+    .today-strength-hero .strength-hero-btn.done {
+      background: rgba(255,255,255,0.35);
     }
 
     /* Active Workout Button */
@@ -1284,7 +1306,7 @@
 <div id="completion-overlay" class="completion-overlay">
   <div class="confetti-container" id="confetti-container"></div>
   <div class="completion-icon">&#x2714;</div>
-  <div class="completion-title">ナイスラン!</div>
+  <div class="completion-title" id="completion-title">ナイスラン!</div>
   <div class="completion-subtitle" id="completion-subtitle"></div>
   <div class="completion-stats" id="completion-stats"></div>
   <button class="completion-close-btn" onclick="App.hideCompletion()">閉じる</button>
