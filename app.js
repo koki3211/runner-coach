@@ -1008,7 +1008,7 @@ const App = {
         '<div class="strength-hero-name">💪 ' + escapeHtml(name) + '</div>' +
       '</div>' +
       '<button class="strength-hero-btn' + (isDone ? ' done' : '') + '" onclick="App.toggleStrengthDone(\'' + todayStr + '\')">' +
-        (isDone ? '✓ 完了済み' : '完了にする') +
+        (isDone ? '✓ 完了済み' : 'トレーニング完了') +
       '</button>' +
     '</div>';
   },
