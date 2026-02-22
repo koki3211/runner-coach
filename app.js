@@ -341,11 +341,46 @@ const App = {
     }
 
     this.renderFriends();
-    // Sync to cloud — always sync when logged in (even without a plan)
-    // so displayName/photoURL/shortId are in Firestore for friend search
+    // Sync or restore from cloud
     if (user && typeof Social !== 'undefined' && Social.enabled) {
-      Social.syncToCloud(this.state || {});
+      // If local state is empty, try to restore from cloud first
+      if (!this.state || !this.state.plan) {
+        const cloudData = await Social.getUserProfile(user.uid);
+        if (cloudData && cloudData.plan && cloudData.plan.length > 0) {
+          this.state = {
+            raceName: cloudData.settings.raceName || '',
+            raceDate: cloudData.settings.raceDate || '',
+            raceType: cloudData.settings.raceType || 'full',
+            targetTime: cloudData.settings.targetTime || '',
+            plan: cloudData.plan,
+            completed: cloudData.completed || {},
+            actualDist: cloudData.actualDist || {},
+            strengthPlan: cloudData.strengthPlan || {},
+            paces: this._recalcPaces(cloudData.settings.targetTime, cloudData.settings.raceType)
+          };
+          saveState(this.state);
+          this.renderGoalScreen();
+          this.renderToday();
+          this.renderPlan();
+          this.switchTab('today', document.querySelector('[data-tab="today"]'));
+        }
+      } else {
+        // Local has data — sync to cloud
+        Social.syncToCloud(this.state);
+      }
     }
+  },
+
+  _recalcPaces(targetTime, raceType) {
+    if (!targetTime) return { jog: '6:00', tempo: '5:00', interval: '4:30', long: '5:30', race: '5:10' };
+    const paces = calcPaces(targetTime, raceType || 'full');
+    return {
+      jog: formatPace(paces.jog, true),
+      tempo: formatPace(paces.tempo, true),
+      interval: formatPace(paces.interval, true),
+      long: formatPace(paces.long, true),
+      race: formatPace(paces.race, true)
+    };
   },
 
   updateAllAvatars(user) {
@@ -539,8 +574,30 @@ const App = {
       daySchedule.push(sel ? sel.value : DEFAULT_DAY_SCHEDULE[i]);
     }
 
-    const weeks = generatePlanData(raceName, raceDate, raceType, targetTime, daySchedule);
+    const newWeeks = generatePlanData(raceName, raceDate, raceType, targetTime, daySchedule);
     const paces = calcPaces(targetTime, raceType);
+
+    // Preserve past days from existing plan (before today)
+    const todayStr = toISO(today());
+    if (this.state && this.state.plan) {
+      const oldDayMap = {};
+      for (const week of this.state.plan) {
+        for (const day of week.days) {
+          oldDayMap[day.date] = day;
+        }
+      }
+      for (const week of newWeeks) {
+        for (let i = 0; i < week.days.length; i++) {
+          const d = week.days[i];
+          if (d.date < todayStr && oldDayMap[d.date]) {
+            // Keep the old day's workout data, only update date metadata
+            const old = oldDayMap[d.date];
+            week.days[i] = { ...old, dayJa: d.dayJa, dayEn: d.dayEn };
+          }
+        }
+        week.totalDist = roundKm(week.days.reduce((s, d) => s + d.dist, 0));
+      }
+    }
 
     this.state = {
       raceName, raceDate, raceType, targetTime, daySchedule,
@@ -551,8 +608,10 @@ const App = {
         long: formatPace(paces.long, true),
         race: formatPace(paces.race, true)
       },
-      plan: weeks,
-      completed: this.state ? (this.state.completed || {}) : {}
+      plan: newWeeks,
+      completed: this.state ? (this.state.completed || {}) : {},
+      actualDist: this.state ? (this.state.actualDist || {}) : {},
+      strengthPlan: this.state ? (this.state.strengthPlan || {}) : {}
     };
     saveState(this.state);
 
@@ -1229,7 +1288,8 @@ const App = {
         const distLabel = day.dist > 0 ? formatDist(day.dist, day.type) + 'km' : '\u2014';
         const d = fromISO(day.date);
         const dateLabel = (d.getMonth() + 1) + '/' + d.getDate();
-        const nameDisplay = TYPE_JA[type] || day.name;
+        const migratedDay = { ...day, type: type };
+        const nameDisplay = formatWorkoutDescription(migratedDay);
         const isToday = day.date === todayStr;
 
         const hasComment = day.comment && day.comment.trim();
@@ -1241,7 +1301,7 @@ const App = {
           '<span class="plan-dot" style="background:' + (TYPE_COLORS[type] || 'var(--color-fill-primary)') + '"></span>' +
           '<span class="plan-day">' + day.dayJa + '</span>' +
           '<span class="plan-date">' + dateLabel + '</span>' +
-          '<span class="plan-name">' + escapeHtml(nameDisplay) + commentBadge + '</span>' +
+          '<span class="plan-name"><span class="plan-name-text">' + escapeHtml(nameDisplay) + '</span>' + commentBadge + '</span>' +
           '<span class="plan-dist">' + distLabel + '</span>' +
           '<span class="plan-check' + (done ? ' done' : '') + '"></span></li>';
       }
@@ -1253,7 +1313,7 @@ const App = {
       '<div class="friend-plan-header">' +
         '<div class="friend-plan-header-row"><button class="friend-plan-close" onclick="App.closeFriendPlan()">\u2715</button></div>' +
         '<div class="friend-plan-name">' + escapeHtml(friend.displayName || friend.email || '友達') + ' のプラン</div>' +
-        (friend.shortId ? '<div style="font-size:var(--font-size-caption1);color:var(--color-label-tertiary);margin-top:2px;letter-spacing:0.5px">ID: ' + escapeHtml(friend.shortId) + '</div>' : '') +
+        (friend.shortId ? '<div style="font-size:var(--font-size-caption1);color:var(--color-label-secondary);margin-top:2px;letter-spacing:0.5px">ID: ' + escapeHtml(friend.shortId) + '</div>' : '') +
         '<div class="friend-plan-subtitle">' + escapeHtml(subtitle) + '</div>' +
       '</div>' +
       '<div class="friend-plan-body">' + planHTML + '</div>';

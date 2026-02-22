@@ -32,7 +32,7 @@
 
     /* Nav Bar */
     .nav-bar {
-      position: sticky; top: 0; z-index: 100;
+      position: sticky; top: var(--safe-area-top); z-index: 100;
       padding: var(--space-md) var(--space-base);
       background: var(--color-bg-primary);
       border-bottom: 0.5px solid var(--color-separator);
@@ -1049,7 +1049,7 @@
     .friend-id-display {
       font-family: var(--font-family-data);
       font-size: var(--font-size-caption2);
-      color: var(--color-label-tertiary);
+      color: var(--color-label-secondary);
       letter-spacing: 0.5px;
     }
 
