@@ -7,21 +7,20 @@
   </defs>
   <!-- Background -->
   <rect width="512" height="512" rx="108" fill="url(#bg)"/>
-  <!-- Progress ring (track) -->
-  <circle cx="256" cy="256" r="148" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="26"/>
-  <!-- Progress ring (filled ~75%) -->
-  <circle cx="256" cy="256" r="148" fill="none" stroke="#fff" stroke-width="26"
-    stroke-linecap="round" stroke-dasharray="930" stroke-dashoffset="232"
-    transform="rotate(-90 256 256)"/>
-  <!-- Running shoe silhouette (centered, simplified) -->
-  <g transform="translate(256,264)" fill="#fff">
-    <!-- Sole -->
-    <path d="M-52,18 C-52,18 -48,28 -30,28 L42,28 C54,28 58,22 58,18 L58,12 C58,8 54,4 48,4 L-36,4 C-48,4 -52,10 -52,18Z" opacity="0.95"/>
-    <!-- Upper shoe -->
-    <path d="M-36,4 C-36,4 -40,-20 -32,-32 C-24,-44 -10,-48 4,-44 L32,-34 C40,-32 48,-24 48,-12 L48,4Z" opacity="0.95"/>
-    <!-- Lace detail -->
-    <line x1="-10" y1="-30" x2="10" y2="-36" stroke="#1A1A1A" stroke-width="3" stroke-linecap="round"/>
-    <line x1="-6" y1="-20" x2="16" y2="-26" stroke="#1A1A1A" stroke-width="3" stroke-linecap="round"/>
-    <line x1="-2" y1="-10" x2="22" y2="-16" stroke="#1A1A1A" stroke-width="3" stroke-linecap="round"/>
+  <!-- Shoe 1 (front, slightly larger — the "you") -->
+  <g transform="translate(270,232) scale(1.15) rotate(-8)" fill="#fff">
+    <path d="M-48,16 C-48,16 -44,26 -28,26 L38,26 C50,26 54,20 54,16 L54,10 C54,6 50,2 44,2 L-32,2 C-44,2 -48,8 -48,16Z" opacity="0.95"/>
+    <path d="M-32,2 C-32,2 -36,-18 -28,-30 C-20,-42 -8,-46 6,-42 L30,-32 C38,-30 44,-22 44,-10 L44,2Z" opacity="0.95"/>
+    <line x1="-8" y1="-28" x2="10" y2="-34" stroke="#1A1A1A" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="-4" y1="-18" x2="14" y2="-24" stroke="#1A1A1A" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="0" y1="-8" x2="20" y2="-14" stroke="#1A1A1A" stroke-width="2.5" stroke-linecap="round"/>
+  </g>
+  <!-- Shoe 2 (behind, slightly smaller — the "mate") -->
+  <g transform="translate(218,292) scale(0.95) rotate(-5)" fill="rgba(255,255,255,0.7)">
+    <path d="M-48,16 C-48,16 -44,26 -28,26 L38,26 C50,26 54,20 54,16 L54,10 C54,6 50,2 44,2 L-32,2 C-44,2 -48,8 -48,16Z" opacity="0.95"/>
+    <path d="M-32,2 C-32,2 -36,-18 -28,-30 C-20,-42 -8,-46 6,-42 L30,-32 C38,-30 44,-22 44,-10 L44,2Z" opacity="0.95"/>
+    <line x1="-8" y1="-28" x2="10" y2="-34" stroke="#1A1A1A" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="-4" y1="-18" x2="14" y2="-24" stroke="#1A1A1A" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="0" y1="-8" x2="20" y2="-14" stroke="#1A1A1A" stroke-width="2.5" stroke-linecap="round"/>
   </g>
 </svg>
