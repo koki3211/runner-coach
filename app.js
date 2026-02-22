@@ -990,20 +990,19 @@ const App = {
   buildTodayStrengthHTML() {
     const todayStr = toISO(today());
     const sDay = this.getStrengthDay(todayStr);
-    if (!sDay) return ''; // No strength training today
+    if (!sDay) return '';
 
     const patterns = this.getStrengthPatterns();
     const pat = patterns.find(p => p.id === sDay.patternId);
     const name = pat ? pat.name : '筋トレ';
     const isDone = sDay.done;
 
-    return '<div class="today-strength">' +
-      '<div class="today-strength-header">' +
-        '<span>💪 ' + escapeHtml(name) + '</span>' +
-        '<button class="today-strength-btn' + (isDone ? ' done' : '') + '" onclick="App.toggleStrengthDone(\'' + todayStr + '\')">' +
-          (isDone ? '✓ 完了' : '完了にする') +
-        '</button>' +
-      '</div>' +
+    return '<div class="today-strength-hero">' +
+      '<div class="strength-hero-type">STRENGTH</div>' +
+      '<div class="strength-hero-name">💪 ' + escapeHtml(name) + '</div>' +
+      '<button class="strength-hero-btn' + (isDone ? ' done' : '') + '" onclick="App.toggleStrengthDone(\'' + todayStr + '\')">' +
+        (isDone ? '✓ 完了済み' : '完了にする') +
+      '</button>' +
     '</div>';
   },
 
@@ -1062,7 +1061,8 @@ const App = {
         }
 
         const keyClass = day.isKeyWorkout ? ' key-workout' : '';
-        html += '<li class="plan-item' + keyClass + '" data-date="' + day.date + '" onclick="App.openEditWorkout(\'' + day.date + '\')" ' +
+        const todayClass = day.date === toISO(today()) ? ' plan-item-today' : '';
+        html += '<li class="plan-item' + keyClass + todayClass + '" data-date="' + day.date + '" onclick="App.openEditWorkout(\'' + day.date + '\')" ' +
           'ontouchstart="App._moveStartTouch(event,\'' + day.date + '\')" ontouchend="App._moveCancelTouch()" ontouchmove="App._moveCancelTouch()" ' +
           'onmousedown="App._moveStartTouch(event,\'' + day.date + '\')" onmouseup="App._moveCancelTouch()" onmouseleave="App._moveCancelTouch()">' +
           '<span class="plan-dot" style="background:' + (TYPE_COLORS[day.type] || 'var(--color-fill-primary)') + '"></span>' +
@@ -1075,10 +1075,10 @@ const App = {
       html += '</ul></div>';
     }
     // Plan type tabs + content wrapper
-    const tabsHTML = '<div class="plan-type-tabs">' +
+    const tabsHTML = '<div class="plan-type-tabs-wrap"><div class="plan-type-tabs">' +
       '<button class="plan-type-tab' + (this._planViewType === 'run' ? ' active' : '') + '" data-plan-type="run" onclick="App.switchPlanType(\'run\')">🏃 ラン</button>' +
       '<button class="plan-type-tab' + (this._planViewType === 'strength' ? ' active' : '') + '" data-plan-type="strength" onclick="App.switchPlanType(\'strength\')">💪 筋トレ</button>' +
-    '</div>';
+    '</div></div>';
 
     const strengthHTML = this.renderStrengthPlan();
 
@@ -1087,26 +1087,21 @@ const App = {
       '<div id="plan-strength-content" style="display:' + (this._planViewType === 'strength' ? 'block' : 'none') + '">' + strengthHTML + '</div>';
 
     // Auto-scroll to current week (for run plan)
-    if (this._planViewType === 'run') {
-      const scrollDate = this._scrollToDate;
-      this._scrollToDate = null;
-      setTimeout(() => {
-        const runContent = document.getElementById('plan-run-content');
-        if (!runContent) return;
-        // If a specific date was requested, scroll to that item
-        if (scrollDate) {
-          const el = runContent.querySelector('.plan-item[data-date="' + scrollDate + '"]');
-          if (el) { el.scrollIntoView({ behavior: 'auto', block: 'center' }); return; }
-        }
-        // Default: scroll to current week
-        const week = this.getCurrentWeek();
-        if (week) {
-          const els = runContent.querySelectorAll('.plan-week');
-          const idx = this.state.plan.indexOf(week);
-          if (els[idx]) els[idx].scrollIntoView({ behavior: 'auto', block: 'start' });
-        }
-      }, 100);
-    }
+    const scrollDate = this._scrollToDate;
+    this._scrollToDate = null;
+    const targetDate = scrollDate || toISO(today());
+    const contentId = this._planViewType === 'run' ? 'plan-run-content' : 'plan-strength-content';
+    setTimeout(() => {
+      const content = document.getElementById(contentId);
+      if (!content) return;
+      const el = content.querySelector('.plan-item[data-date="' + targetDate + '"]');
+      if (el) { el.scrollIntoView({ behavior: 'auto', block: 'center' }); return; }
+      // Fallback: scroll to today's item even if targetDate not found
+      if (scrollDate) {
+        const todayEl = content.querySelector('.plan-item-today');
+        if (todayEl) todayEl.scrollIntoView({ behavior: 'auto', block: 'center' });
+      }
+    }, 100);
   },
 
   // --- Strength Training Plan ---
@@ -1165,6 +1160,7 @@ const App = {
     const pat = patterns.find(p => p.id === day.patternId);
     const name = pat ? pat.name : '筋トレ';
     const overlay = document.getElementById('completion-overlay');
+    document.getElementById('completion-title').textContent = 'ナイストレーニング!';
     document.getElementById('completion-subtitle').textContent = name + ' 完了';
     document.getElementById('completion-stats').innerHTML =
       '<div class="completion-stat"><div class="stat-value">💪</div><div class="stat-label">' + escapeHtml(name) + '</div></div>';
@@ -1277,7 +1273,8 @@ const App = {
           options += '<option value="' + p.id + '"' + (p.id === selectedId ? ' selected' : '') + '>' + escapeHtml(p.name) + '</option>';
         }
 
-        html += '<li class="plan-item">' +
+        const sTodayClass = day.date === toISO(today()) ? ' plan-item-today' : '';
+        html += '<li class="plan-item' + sTodayClass + '" data-date="' + day.date + '">' +
           '<span class="plan-day">' + day.dayJa + '</span>' +
           '<span class="plan-date">' + dateLabel + '</span>' +
           '<span class="plan-name"><select class="strength-select" onchange="App.selectStrengthPattern(\'' + day.date + '\',this.value)">' + options + '</select></span>' +
@@ -2020,6 +2017,7 @@ const App = {
   // --- Completion Overlay ---
   showCompletion(workout) {
     const overlay = document.getElementById('completion-overlay');
+    document.getElementById('completion-title').textContent = 'ナイスラン!';
     document.getElementById('completion-subtitle').textContent =
       workout ? workout.name + ' 完了' : 'ワークアウト完了';
     const dist = workout ? Math.round(workout.dist) : 0;
