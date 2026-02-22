@@ -1044,7 +1044,9 @@ const App = {
         }
 
         const keyClass = day.isKeyWorkout ? ' key-workout' : '';
-        html += '<li class="plan-item' + keyClass + '" onclick="App.openEditWorkout(\'' + day.date + '\')">' +
+        html += '<li class="plan-item' + keyClass + '" onclick="App.openEditWorkout(\'' + day.date + '\')" ' +
+          'ontouchstart="App._moveStartTouch(event,\'' + day.date + '\')" ontouchend="App._moveCancelTouch()" ontouchmove="App._moveCancelTouch()" ' +
+          'onmousedown="App._moveStartTouch(event,\'' + day.date + '\')" onmouseup="App._moveCancelTouch()" onmouseleave="App._moveCancelTouch()">' +
           '<span class="plan-dot" style="background:' + (TYPE_COLORS[day.type] || 'var(--color-fill-primary)') + '"></span>' +
           '<span class="plan-day">' + day.dayJa + '</span>' +
           '<span class="plan-date">' + dateLabel + '</span>' +
@@ -1620,6 +1622,129 @@ const App = {
 
   closeEditWorkout() {
     document.getElementById('edit-overlay').classList.remove('show');
+  },
+
+  // --- Long-press to move workout ---
+  _moveLongPressTimer: null,
+  _movingDate: null,
+
+  _moveStartTouch(e, dateStr) {
+    this._moveLongPressTimer = setTimeout(() => {
+      e.preventDefault();
+      this._openMoveSheet(dateStr);
+    }, 500);
+  },
+
+  _moveCancelTouch() {
+    if (this._moveLongPressTimer) {
+      clearTimeout(this._moveLongPressTimer);
+      this._moveLongPressTimer = null;
+    }
+  },
+
+  _openMoveSheet(dateStr) {
+    if (!this.state || !this.state.plan) return;
+    this._movingDate = dateStr;
+
+    // Collect all days from plan
+    const allDays = [];
+    for (const week of this.state.plan) {
+      for (const day of week.days) allDays.push(day);
+    }
+
+    const srcIdx = allDays.findIndex(d => d.date === dateStr);
+    if (srcIdx < 0) return;
+    const srcDay = allDays[srcIdx];
+    const srcDd = fromISO(dateStr);
+    const srcLabel = srcDay.dayJa + ' ' + (srcDd.getMonth() + 1) + '/' + srcDd.getDate();
+
+    // Build list of nearby days (same week + prev/next week range, ~21 days)
+    const start = Math.max(0, srcIdx - 10);
+    const end = Math.min(allDays.length, srcIdx + 11);
+    let listHTML = '';
+    for (let i = start; i < end; i++) {
+      const d = allDays[i];
+      if (d.date === dateStr) continue;
+      const dd = fromISO(d.date);
+      const label = d.dayJa + ' ' + (dd.getMonth() + 1) + '/' + dd.getDate();
+      const desc = formatWorkoutDescription(d);
+      const selected = '';
+      listHTML += '<li class="move-target-item" onclick="App._executeMove(\'' + dateStr + '\',\'' + d.date + '\')">' +
+        '<span class="move-target-date">' + label + '</span>' +
+        '<span class="move-target-desc">' + escapeHtml(desc) + '</span>' +
+        '</li>';
+    }
+
+    const overlay = document.getElementById('edit-overlay');
+    overlay.innerHTML =
+      '<div class="edit-backdrop" onclick="App.closeMoveSheet()"></div>' +
+      '<div class="edit-sheet">' +
+        '<div class="edit-sheet-handle"></div>' +
+        '<div class="edit-sheet-title">移動先を選択</div>' +
+        '<div class="move-source-label">' + escapeHtml(formatWorkoutDescription(srcDay)) + '（' + srcLabel + '）</div>' +
+        '<ul class="move-target-list">' + listHTML + '</ul>' +
+        '<div class="edit-actions">' +
+          '<button class="edit-cancel-btn" onclick="App.closeMoveSheet()">キャンセル</button>' +
+        '</div>' +
+      '</div>';
+    overlay.classList.add('show');
+  },
+
+  closeMoveSheet() {
+    this._movingDate = null;
+    document.getElementById('edit-overlay').classList.remove('show');
+  },
+
+  _executeMove(srcDate, destDate) {
+    if (!this.state || !this.state.plan) return;
+
+    // Collect all days in order
+    const allDays = [];
+    for (const week of this.state.plan) {
+      for (const day of week.days) allDays.push(day);
+    }
+
+    const srcIdx = allDays.findIndex(d => d.date === srcDate);
+    const destIdx = allDays.findIndex(d => d.date === destDate);
+    if (srcIdx < 0 || destIdx < 0 || srcIdx === destIdx) return;
+
+    // Extract workout data (not date/dayJa/dayEn) for shifting
+    const extractWorkout = (d) => ({
+      type: d.type, name: d.name, dist: d.dist, pace: d.pace,
+      comment: d.comment, detail: d.detail, isKeyWorkout: d.isKeyWorkout,
+      duration: d.duration
+    });
+    const applyWorkout = (d, w) => {
+      d.type = w.type; d.name = w.name; d.dist = w.dist; d.pace = w.pace;
+      d.comment = w.comment; d.isKeyWorkout = w.isKeyWorkout;
+      d.duration = w.duration;
+      if (w.detail) d.detail = w.detail; else delete d.detail;
+    };
+
+    if (destIdx > srcIdx) {
+      // Moving forward: shift items between src+1..dest back by one
+      const srcWorkout = extractWorkout(allDays[srcIdx]);
+      for (let i = srcIdx; i < destIdx; i++) {
+        applyWorkout(allDays[i], extractWorkout(allDays[i + 1]));
+      }
+      applyWorkout(allDays[destIdx], srcWorkout);
+    } else {
+      // Moving backward: shift items between dest..src-1 forward by one
+      const srcWorkout = extractWorkout(allDays[srcIdx]);
+      for (let i = srcIdx; i > destIdx; i--) {
+        applyWorkout(allDays[i], extractWorkout(allDays[i - 1]));
+      }
+      applyWorkout(allDays[destIdx], srcWorkout);
+    }
+
+    // Recalc week totals
+    for (const week of this.state.plan) {
+      week.totalDist = roundKm(week.days.reduce((s, d) => s + d.dist, 0));
+    }
+
+    this.save();
+    this.closeMoveSheet();
+    this.renderPlan();
   },
 
   onEditTypeChange() {
