@@ -1746,7 +1746,7 @@ const App = {
       week.totalDist = roundKm(week.days.reduce((s, d) => s + d.dist, 0));
     }
 
-    this.save();
+    saveState(this.state);
     this.closeMoveSheet();
     this.renderPlan();
   },
