@@ -998,8 +998,10 @@ const App = {
     const isDone = sDay.done;
 
     return '<div class="today-strength-hero">' +
-      '<div class="strength-hero-type">STRENGTH</div>' +
-      '<div class="strength-hero-name">💪 ' + escapeHtml(name) + '</div>' +
+      '<div class="strength-hero-info">' +
+        '<div class="strength-hero-type">STRENGTH</div>' +
+        '<div class="strength-hero-name">💪 ' + escapeHtml(name) + '</div>' +
+      '</div>' +
       '<button class="strength-hero-btn' + (isDone ? ' done' : '') + '" onclick="App.toggleStrengthDone(\'' + todayStr + '\')">' +
         (isDone ? '✓ 完了済み' : '完了にする') +
       '</button>' +
@@ -1085,6 +1087,13 @@ const App = {
     document.getElementById('plan-content').innerHTML = tabsHTML +
       '<div id="plan-run-content" style="display:' + (this._planViewType === 'run' ? 'block' : 'none') + '">' + html + '</div>' +
       '<div id="plan-strength-content" style="display:' + (this._planViewType === 'strength' ? 'block' : 'none') + '">' + strengthHTML + '</div>';
+
+    // Set sticky top for plan-type-tabs based on navbar height
+    const navbar = document.querySelector('#screen-plan .nav-bar');
+    if (navbar) {
+      const wrap = document.querySelector('.plan-type-tabs-wrap');
+      if (wrap) wrap.style.top = navbar.offsetHeight + 'px';
+    }
 
     // Auto-scroll to current week (for run plan)
     const scrollDate = this._scrollToDate;
