@@ -1532,6 +1532,8 @@ const App = {
 
   // --- Edit Workout ---
   openEditWorkout(dateStr) {
+    // Skip if triggered by click after a long-press
+    if (this._longPressTriggered) { this._longPressTriggered = false; return; }
     if (!this.state || !this.state.plan) return;
     let targetDay = null;
     for (const week of this.state.plan) {
@@ -1627,10 +1629,12 @@ const App = {
   // --- Long-press to move workout ---
   _moveLongPressTimer: null,
   _movingDate: null,
+  _longPressTriggered: false,
 
   _moveStartTouch(e, dateStr) {
+    this._longPressTriggered = false;
     this._moveLongPressTimer = setTimeout(() => {
-      e.preventDefault();
+      this._longPressTriggered = true;
       this._openMoveSheet(dateStr);
     }, 500);
   },
