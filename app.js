@@ -1588,10 +1588,11 @@ const App = {
             '<input type="number" id="edit-reps" class="form-input" value="' + repCount + '" min="1" step="1"></div>' +
         '</div>' +
         '<div id="edit-normal-fields" style="display:' + (isInterval || isRest ? 'none' : 'block') + '">' +
-          '<div class="edit-field"><label class="form-label">目標距離 / 時間</label>' +
+          '<div class="edit-field"><label class="form-label">目標距離 or 目標時間</label>' +
             '<div class="edit-dist-duration-row">' +
               '<input type="number" id="edit-dist" class="form-input" value="' + distVal + '" min="0" step="1" placeholder="0">' +
               '<span class="edit-unit-label">km</span>' +
+              '<span class="edit-unit-label">or</span>' +
               '<input type="number" id="edit-duration" class="form-input" value="' + durationVal + '" min="0" step="1" placeholder="—">' +
               '<span class="edit-unit-label">分</span>' +
             '</div>' +
