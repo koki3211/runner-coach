@@ -599,6 +599,11 @@ const App = {
     if (el) el.classList.add('active');
     window.scrollTo(0, 0);
     if (id === 'friends') this.renderFriends();
+    if (id === 'plan') {
+      const navbar = document.querySelector('#screen-plan .nav-bar');
+      const wrap = document.querySelector('.plan-type-tabs-wrap');
+      if (navbar && wrap) wrap.style.top = navbar.offsetHeight + 'px';
+    }
   },
 
   // --- Empty State ---
@@ -919,7 +924,7 @@ const App = {
       '</div>';
     } else {
       heroHTML = '<div class="today-hero type-' + w.type + '">' +
-        '<div class="workout-type">' + (TYPE_JA[w.type] || w.type) + '</div>' +
+        '<div class="workout-type">' + (w.type === 'rest' ? 'レスト' : 'ラン') + '</div>' +
         '<div class="workout-name">' + escapeHtml(w.name) + '</div>' +
         '<div class="workout-detail">' + heroDetail + '</div>' +
         commentHTML +
@@ -999,7 +1004,7 @@ const App = {
 
     return '<div class="today-strength-hero">' +
       '<div class="strength-hero-info">' +
-        '<div class="strength-hero-type">STRENGTH</div>' +
+        '<div class="strength-hero-type">筋トレ</div>' +
         '<div class="strength-hero-name">💪 ' + escapeHtml(name) + '</div>' +
       '</div>' +
       '<button class="strength-hero-btn' + (isDone ? ' done' : '') + '" onclick="App.toggleStrengthDone(\'' + todayStr + '\')">' +
