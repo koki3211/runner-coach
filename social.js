@@ -190,6 +190,26 @@ const Social = {
     await batch.commit();
   },
 
+  // --- Invite Link: instant mutual friend ---
+  async acceptInvite(inviterUid) {
+    if (!this.enabled || !this.currentUser) return false;
+    if (inviterUid === this.currentUser.uid) return false;
+    // Check if already friends
+    const myProfile = await this.getUserProfile(this.currentUser.uid);
+    if (myProfile && myProfile.friends && myProfile.friends.includes(inviterUid)) return false;
+    // Verify inviter exists
+    const inviterProfile = await this.getUserProfile(inviterUid);
+    if (!inviterProfile) return false;
+    // Add each other as friends (same pattern as acceptRequest)
+    const batch = this.db.batch();
+    batch.update(this.db.collection('users').doc(this.currentUser.uid),
+      { friends: firebase.firestore.FieldValue.arrayUnion(inviterUid) });
+    batch.update(this.db.collection('users').doc(inviterUid),
+      { friends: firebase.firestore.FieldValue.arrayUnion(this.currentUser.uid) });
+    await batch.commit();
+    return true;
+  },
+
   // --- Load Friends Data ---
   async loadFriendsData() {
     if (!this.enabled || !this.currentUser) return [];
