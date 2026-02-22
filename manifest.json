@@ -7,6 +7,6 @@
   "background_color": "#000000",
   "theme_color": "#007AFF",
   "icons": [
-    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml" }
+    { "src": "./RuCrew_icon.png", "sizes": "512x512", "type": "image/png" }
   ]
 }
