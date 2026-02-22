@@ -997,37 +997,44 @@
     }
     .strength-pattern-input { flex: 1; }
 
-    /* Today Strength Training Card — hero style */
+    /* Today Strength Training Card — compact hero style */
     .today-strength-hero {
       color: #fff; border-radius: var(--radius-xl);
-      padding: var(--space-lg) var(--space-xl);
+      padding: var(--space-base) var(--space-lg);
       margin: var(--space-sm) var(--space-base) 0;
       position: relative; overflow: hidden;
       background: linear-gradient(135deg, #AF52DE, #5856D6);
+      display: flex; align-items: center; justify-content: space-between;
+      gap: var(--space-md);
     }
     .today-strength-hero::after {
-      content: ""; position: absolute; top: -30%; right: -20%;
-      width: 160px; height: 160px; border-radius: 50%;
-      background: rgba(255,255,255,0.08);
+      content: ""; position: absolute; top: -50%; right: -15%;
+      width: 120px; height: 120px; border-radius: 50%;
+      background: rgba(255,255,255,0.08); pointer-events: none;
+    }
+    .today-strength-hero .strength-hero-info {
+      display: flex; flex-direction: column; min-width: 0;
     }
     .today-strength-hero .strength-hero-type {
-      font-size: var(--font-size-caption1); font-weight: var(--font-weight-semibold);
-      text-transform: uppercase; letter-spacing: 1px; opacity: 0.85;
+      font-size: var(--font-size-caption2); font-weight: var(--font-weight-semibold);
+      text-transform: uppercase; letter-spacing: 1px; opacity: 0.8;
     }
     .today-strength-hero .strength-hero-name {
       font-family: var(--font-family-display);
-      font-size: var(--font-size-title2); font-weight: var(--font-weight-bold);
-      margin-top: var(--space-2xs); line-height: var(--line-height-tight);
+      font-size: var(--font-size-headline); font-weight: var(--font-weight-bold);
+      line-height: var(--line-height-tight);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .today-strength-hero .strength-hero-btn {
-      display: inline-flex; align-items: center; gap: var(--space-sm);
-      margin-top: var(--space-md); padding: var(--space-sm) var(--space-xl);
+      display: inline-flex; align-items: center; gap: var(--space-xs);
+      padding: var(--space-xs) var(--space-base);
       background: rgba(255,255,255,0.22); backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
       border: 1px solid rgba(255,255,255,0.3); border-radius: var(--radius-full);
       color: #fff; font-family: var(--font-family-body);
-      font-size: var(--font-size-subhead); font-weight: var(--font-weight-semibold);
+      font-size: var(--font-size-caption1); font-weight: var(--font-weight-semibold);
       cursor: pointer; transition: transform var(--duration-fast) var(--easing-spring);
+      flex-shrink: 0; white-space: nowrap; position: relative; z-index: 1;
     }
     .today-strength-hero .strength-hero-btn:active { transform: scale(0.95); }
     .today-strength-hero .strength-hero-btn.done {
