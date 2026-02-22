@@ -1229,7 +1229,8 @@ const App = {
         const distLabel = day.dist > 0 ? formatDist(day.dist, day.type) + 'km' : '\u2014';
         const d = fromISO(day.date);
         const dateLabel = (d.getMonth() + 1) + '/' + d.getDate();
-        const nameDisplay = TYPE_JA[type] || day.name;
+        const migratedDay = { ...day, type: type };
+        const nameDisplay = formatWorkoutDescription(migratedDay);
         const isToday = day.date === todayStr;
 
         const hasComment = day.comment && day.comment.trim();
@@ -1241,7 +1242,7 @@ const App = {
           '<span class="plan-dot" style="background:' + (TYPE_COLORS[type] || 'var(--color-fill-primary)') + '"></span>' +
           '<span class="plan-day">' + day.dayJa + '</span>' +
           '<span class="plan-date">' + dateLabel + '</span>' +
-          '<span class="plan-name">' + escapeHtml(nameDisplay) + commentBadge + '</span>' +
+          '<span class="plan-name"><span class="plan-name-text">' + escapeHtml(nameDisplay) + '</span>' + commentBadge + '</span>' +
           '<span class="plan-dist">' + distLabel + '</span>' +
           '<span class="plan-check' + (done ? ' done' : '') + '"></span></li>';
       }
@@ -1253,7 +1254,7 @@ const App = {
       '<div class="friend-plan-header">' +
         '<div class="friend-plan-header-row"><button class="friend-plan-close" onclick="App.closeFriendPlan()">\u2715</button></div>' +
         '<div class="friend-plan-name">' + escapeHtml(friend.displayName || friend.email || '友達') + ' のプラン</div>' +
-        (friend.shortId ? '<div style="font-size:var(--font-size-caption1);color:var(--color-label-tertiary);margin-top:2px;letter-spacing:0.5px">ID: ' + escapeHtml(friend.shortId) + '</div>' : '') +
+        (friend.shortId ? '<div style="font-size:var(--font-size-caption1);color:var(--color-label-secondary);margin-top:2px;letter-spacing:0.5px">ID: ' + escapeHtml(friend.shortId) + '</div>' : '') +
         '<div class="friend-plan-subtitle">' + escapeHtml(subtitle) + '</div>' +
       '</div>' +
       '<div class="friend-plan-body">' + planHTML + '</div>';
