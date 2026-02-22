@@ -1,7 +1,7 @@
 {
-  "name": "Runner Coach",
-  "short_name": "Runner",
-  "description": "ランニングトレーニングプランナー",
+  "name": "RunCrew",
+  "short_name": "RunCrew",
+  "description": "仲間と一緒に走るランニングプランナー",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#000000",

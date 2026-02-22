@@ -1651,7 +1651,7 @@ const App = {
     const base = location.origin + location.pathname;
     const url = base + '?invite=' + Social.currentUser.uid;
     if (navigator.share) {
-      navigator.share({ title: 'Runner Coach', text: '一緒にトレーニングしよう！', url: url }).catch(() => {});
+      navigator.share({ title: 'RunCrew', text: '一緒にトレーニングしよう！', url: url }).catch(() => {});
     } else {
       navigator.clipboard.writeText(url).then(() => {
         this._showInviteCopied();
