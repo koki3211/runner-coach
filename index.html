@@ -1054,6 +1054,25 @@
       font-weight: var(--font-weight-semibold);
     }
 
+    /* Manako Toggle */
+    .manako-toggle {
+      display: flex; align-items: center; gap: var(--space-sm);
+      cursor: pointer; padding: var(--space-sm) 0;
+    }
+    .manako-toggle input[type="checkbox"] {
+      width: 20px; height: 20px; accent-color: var(--color-brand-primary);
+    }
+    .manako-toggle-label {
+      font-size: var(--font-size-body);
+      font-weight: var(--font-weight-semibold);
+    }
+
+    /* Key Workout Marker (Plan tab) */
+    .plan-item.key-workout .plan-name-text {
+      font-weight: var(--font-weight-bold);
+      color: var(--color-interval);
+    }
+
     /* Utility */
     .mx { margin-left: var(--space-base); margin-right: var(--space-base); }
 
@@ -1186,6 +1205,13 @@
           <label class="form-label">曜日別メニュー</label>
           <div class="form-hint" style="margin-bottom:var(--space-sm)">走る曜日とメニューを設定</div>
           <div class="day-schedule" id="day-schedule"></div>
+        </div>
+        <div class="form-group">
+          <label class="manako-toggle">
+            <input type="checkbox" id="input-manako">
+            <span class="manako-toggle-label">真名子式メニューを適用</span>
+          </label>
+          <div class="form-hint">大東文化大学コーチ監修のレース直前メニュー<br>（フル: 42日前〜 / ハーフ: 15日前〜）</div>
         </div>
       </form>
     </div>

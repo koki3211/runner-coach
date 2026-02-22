@@ -10,15 +10,15 @@ const MONTHS_JA = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月
 const TYPE_COLORS = {
   jog: 'var(--color-easy-run)', rest: 'var(--color-rest-day)',
   interval: 'var(--color-interval)', tempo: 'var(--color-tempo-run)',
-  long: 'var(--color-long-run)'
+  long: 'var(--color-long-run)', race: 'var(--color-interval)'
 };
 const TYPE_LABELS = {
   jog: 'Jog', rest: 'Rest', interval: 'Intv',
-  tempo: 'Tempo', long: 'Long'
+  tempo: 'Tempo', long: 'Long', race: 'Race'
 };
 const TYPE_JA = {
   rest: 'レスト', jog: 'ジョグ', interval: 'インターバル',
-  tempo: 'テンポラン', long: 'ロングラン'
+  tempo: 'テンポラン', long: 'ロングラン', race: 'レース'
 };
 // Migration map for old type names
 const TYPE_MIGRATION = { recovery: 'jog', easy: 'jog', cross: 'jog' };
@@ -49,6 +49,97 @@ const INTERVALS = [
   { reps: '800m \u00d7 4', rest: '200m\u30b8\u30e7\u30b0' },
   { reps: '400m \u00d7 6', rest: '200m\u30b8\u30e7\u30b0' }
 ];
+
+// --- Manako-style Pre-Race Plans ---
+// Based on 真名子圭 (大東文化大学コーチ) の練習メニュー
+// Index = days before race (0 = race day)
+const MANAKO_FULL = [
+  { type: 'race', name: '大会当日', dist: 42.195, paceKey: 'race', comment: 'フルマラソンレース' },
+  { type: 'jog', name: 'FJ+WS', dist: 5, paceKey: 'jog', comment: '軽いジョグ+ウインドスプリントで動きを整える' },
+  { type: 'jog', name: 'FJ', dist: 5, paceKey: 'jog', comment: '各自の調子に合わせて自由に設定' },
+  { type: 'tempo', name: '2km+WS', dist: 4, paceKey: 'race', comment: 'レースペースよりやや速い2km。WSで動きを整える' },
+  { type: 'jog', name: 'FJ', dist: 5, paceKey: 'jog', comment: '各自の調子に合わせて自由に設定' },
+  { type: 'rest', name: 'レスト', dist: 0, comment: '休養。散歩でもよい' },
+  { type: 'jog', name: '10km RJ', dist: 10, paceKey: 'jog', comment: 'リズムよく走って力を溜める' },
+  { type: 'tempo', name: '★ 15km走', dist: 15, paceKey: 'tempo', comment: '最後のスピード刺激。余裕を持って走り切れるか確認', key: true },
+  { type: 'jog', name: '8km JOG', dist: 8, paceKey: 'jog', comment: 'ポイント練習に向けて調子を上げるジョグ' },
+  { type: 'jog', name: 'D-up+10km RJ', dist: 10, paceKey: 'jog', comment: 'ドリルで動きを整え、リズムよく走る' },
+  { type: 'jog', name: '8〜10km JOG', dist: 9, paceKey: 'jog', comment: 'ジョグは調子を整える目的' },
+  { type: 'jog', name: '4kmJOG+WS×10+2km', dist: 6, paceKey: 'jog', comment: 'ジョグはアップ程度。下り坂WSで速い動きの感覚を整える' },
+  { type: 'rest', name: 'レスト', dist: 0, comment: '休養。練習の予備日にしてもよい' },
+  { type: 'jog', name: 'JOG 40分', dist: 7, paceKey: 'jog', comment: '回復目的でゆっくり40分' },
+  { type: 'interval', name: '★ 5km×2', dist: 10, paceKey: 'race', comment: 'レースペースまで上げるスピード刺激。レスト1〜3分', key: true, detail: { reps: '5000m × 2', rest: 'レスト1〜3分' } },
+  { type: 'jog', name: '8km JOG', dist: 8, paceKey: 'jog', comment: 'ポイント練習に向けて調子を上げるジョグ' },
+  { type: 'long', name: 'LJ 90分', dist: 15, paceKey: 'long', comment: 'ゆっくり90分。調子を確かめながら距離も確保' },
+  { type: 'rest', name: 'レスト', dist: 0, comment: '休養。練習の予備日にしてもよい' },
+  { type: 'jog', name: '12km JOG', dist: 12, paceKey: 'jog', comment: 'リズムジョグに近い形で少し長めに走る' },
+  { type: 'jog', name: '8〜10km JOG', dist: 9, paceKey: 'jog', comment: '距離を踏みつつカラダの調子を整える' },
+  { type: 'jog', name: 'D-up+10km RJ', dist: 10, paceKey: 'jog', comment: 'ドリルで動きを整え、リズムよく走る' },
+  { type: 'rest', name: 'レスト', dist: 0, comment: '休養。散歩でもよい' },
+  { type: 'long', name: '★ 25km走', dist: 25, paceKey: 'long', comment: '30km走より速いペースで走り込む距離走', key: true },
+  { type: 'jog', name: '12〜14km JOG', dist: 13, paceKey: 'jog', comment: 'ポイント練習に向けて調子を上げる' },
+  { type: 'jog', name: 'JOG', dist: 8, paceKey: 'jog', comment: 'つなぎのジョグで回復' },
+  { type: 'jog', name: '4kmJOG+WS×15+2km', dist: 6, paceKey: 'jog', comment: 'ジョグはアップ程度。下り坂WSで速い動きの感覚を整える' },
+  { type: 'jog', name: '12〜14km JOG', dist: 13, paceKey: 'jog', comment: '距離をしっかり踏む' },
+  { type: 'long', name: 'LJ 120分以上', dist: 20, paceKey: 'long', comment: 'ゆっくりペースで120分以上走るロングジョグ' },
+  { type: 'tempo', name: '12km B-up', dist: 12, paceKey: 'tempo', comment: '前半ゆっくり、後半ペースを上げるビルドアップ走' },
+  { type: 'jog', name: '5〜8km JOG', dist: 7, paceKey: 'jog', comment: '距離耐性の確認ジョグ' },
+  { type: 'interval', name: '200m×10', dist: 8, paceKey: 'interval', comment: 'スピード刺激。動きを上げる', detail: { reps: '200m × 10', rest: '200mジョグ' } },
+  { type: 'jog', name: '10km JOG', dist: 10, paceKey: 'jog', comment: 'ポイント練習に備えたジョグ' },
+  { type: 'rest', name: 'レスト', dist: 0, comment: '軽いジョグまたはストレッチでカラダを動かす' },
+  { type: 'jog', name: '3km', dist: 3, paceKey: 'jog', comment: 'カラダを休める。散歩でもよい' },
+  { type: 'rest', name: 'レスト', dist: 0, comment: '休養' },
+  { type: 'long', name: '★ 30km走', dist: 30, paceKey: 'long', comment: 'しっかり走り込む距離走', key: true },
+  { type: 'interval', name: '400m×12', dist: 8, paceKey: 'interval', comment: 'しっかり走り込む。レスト90秒', detail: { reps: '400m × 12', rest: 'レスト90秒' } },
+  { type: 'tempo', name: '15km R-up', dist: 15, paceKey: 'tempo', comment: 'ゆっくりからスタートし、気持ちよくビルドアップ' },
+  { type: 'jog', name: '5〜8km JOG', dist: 7, paceKey: 'jog', comment: 'ポイント練習に向けて準備' },
+  { type: 'jog', name: '12〜14km JOG', dist: 13, paceKey: 'jog', comment: 'ゆっくりペースで整える' },
+  { type: 'rest', name: 'レスト', dist: 0, comment: '休養' },
+  { type: 'jog', name: 'JOG 40分', dist: 7, paceKey: 'jog', comment: '回復目的のゆっくりペースで40分' },
+  { type: 'long', name: 'ハーフマラソンレース', dist: 21, paceKey: 'race', comment: 'レースペースで走る。力の確認', key: true }
+];
+
+const MANAKO_HALF = [
+  { type: 'race', name: '大会当日', dist: 21.0975, paceKey: 'race', comment: 'ハーフマラソンレース' },
+  { type: 'jog', name: 'FJ', dist: 5, paceKey: 'jog', comment: '各自の調子に合わせて自由に設定' },
+  { type: 'interval', name: '1000m×2', dist: 5, paceKey: 'interval', comment: '力を吐き切らず溜めるイメージ。WS感覚で調子を整える', detail: { reps: '1000m × 2', rest: 'レスト1〜3分' } },
+  { type: 'jog', name: 'FJ', dist: 5, paceKey: 'jog', comment: '各自の調子に合わせて自由に設定' },
+  { type: 'jog', name: 'JOG 45〜60分', dist: 8, paceKey: 'jog', comment: '回復を図るイメージで45〜60分' },
+  { type: 'tempo', name: '★ 8000mPR+(400m×2)', dist: 9, paceKey: 'tempo', comment: 'レースペースより余裕あるペースで距離を踏み、力を溜める', key: true },
+  { type: 'jog', name: 'D-up+JOG 45分', dist: 8, paceKey: 'jog', comment: 'ドリルで動きを整え、調子を上げる' },
+  { type: 'rest', name: 'レスト', dist: 0, comment: '休養。散歩でもよい' },
+  { type: 'interval', name: '★ (2000m×4)+400m', dist: 9, paceKey: 'race', comment: 'レースペース刺激。ラストはレースペースより速く。レスト1〜3分', key: true, detail: { reps: '2000m × 4 + 400m', rest: 'レスト1〜3分' } },
+  { type: 'jog', name: 'JOG 45〜60分', dist: 8, paceKey: 'jog', comment: 'ポイント練習に向け調子を上げるイメージ' },
+  { type: 'jog', name: 'JOG 60〜90分', dist: 12, paceKey: 'jog', comment: '回復を図るイメージでゆっくり長く' },
+  { type: 'interval', name: '★ 1km×8', dist: 8, paceKey: 'race', comment: 'ロードでスピード刺激。レースペース、レスト1分', key: true, detail: { reps: '1000m × 8', rest: 'レスト1分' } },
+  { type: 'jog', name: 'D-up+JOG 45分', dist: 8, paceKey: 'jog', comment: 'ドリルで動きを整え、調子を上げる' },
+  { type: 'rest', name: 'レスト', dist: 0, comment: '休養。散歩でもよい' },
+  { type: 'long', name: '★ 24km走', dist: 24, paceKey: 'long', comment: '距離刺激が目的。しっかり走り込む', key: true },
+  { type: 'jog', name: 'JOG 60〜90分', dist: 12, paceKey: 'jog', comment: 'トラックより長めに60〜90分走る' }
+];
+
+// Apply Manako overlay to the last N days before race
+function applyManakoOverlay(weeks, raceDate, raceType, paces) {
+  const raceDateObj = fromISO(raceDate);
+  const manakoData = raceType === 'half' ? MANAKO_HALF : MANAKO_FULL;
+  for (const week of weeks) {
+    for (let i = 0; i < week.days.length; i++) {
+      const dayDate = fromISO(week.days[i].date);
+      const diffDays = Math.round((raceDateObj - dayDate) / (24 * 60 * 60 * 1000));
+      if (diffDays >= 0 && diffDays < manakoData.length) {
+        const m = manakoData[diffDays];
+        week.days[i] = {
+          date: week.days[i].date, dayJa: week.days[i].dayJa, dayEn: week.days[i].dayEn,
+          type: m.type, name: m.name, dist: m.dist,
+          pace: m.paceKey && paces[m.paceKey] ? formatPace(paces[m.paceKey], true) : '-',
+          comment: m.comment || '', detail: m.detail || undefined,
+          isKeyWorkout: m.key || false
+        };
+      }
+    }
+    week.totalDist = roundKm(week.days.reduce((s, d) => s + d.dist, 0));
+  }
+}
 
 // --- Date Utilities ---
 function today() { return new Date(); }
@@ -99,12 +190,13 @@ function formatPace(minPerKm, roundTo5) {
 }
 
 // --- Plan Generation ---
-function generatePlanData(raceName, raceDate, raceType, targetTime, daySchedule) {
+function generatePlanData(raceName, raceDate, raceType, targetTime, daySchedule, manakoMode) {
   const paces = calcPaces(targetTime, raceType);
   const raceD = fromISO(raceDate);
   const startMonday = getMonday(today());
   const weeksAvail = weeksBetween(startMonday, raceD);
-  const totalWeeks = Math.max(4, Math.min(24, weeksAvail - 1));
+  // Include race week (+1) so race day is in the plan
+  const totalWeeks = Math.max(4, Math.min(24, weeksAvail + 1));
 
   const schedule = daySchedule || DEFAULT_DAY_SCHEDULE;
 
@@ -177,6 +269,25 @@ function generatePlanData(raceName, raceDate, raceType, targetTime, daySchedule)
       days: weekDays,
       totalDist: roundKm(weekDays.reduce((s, d) => s + d.dist, 0))
     });
+  }
+
+  // Mark race day as "大会当日" and post-race days as rest
+  const raceDateStr = raceDate;
+  for (const week of weeks) {
+    for (let i = 0; i < week.days.length; i++) {
+      const d = week.days[i];
+      if (d.date === raceDateStr) {
+        week.days[i] = { ...d, type: 'race', name: '大会当日', dist: raceType === 'half' ? 21.1 : 42.195, pace: formatPace(paces.race, true), comment: raceName };
+      } else if (d.date > raceDateStr) {
+        week.days[i] = { ...d, type: 'rest', name: 'レスト', dist: 0, pace: '-', comment: '' };
+      }
+    }
+    week.totalDist = roundKm(week.days.reduce((s, d) => s + d.dist, 0));
+  }
+
+  // Apply Manako pre-race overlay if enabled
+  if (manakoMode) {
+    applyManakoOverlay(weeks, raceDate, raceType, paces);
   }
 
   return weeks;
@@ -508,6 +619,10 @@ const App = {
       if (timeM) timeM.value = tp[1] || '00';
     }
 
+    // Manako mode checkbox
+    const manakoInput = document.getElementById('input-manako');
+    if (manakoInput) manakoInput.checked = !!s.manakoMode;
+
     // Day schedule selector
     this.renderDaySchedule(s.daySchedule || DEFAULT_DAY_SCHEDULE);
   },
@@ -574,7 +689,11 @@ const App = {
       daySchedule.push(sel ? sel.value : DEFAULT_DAY_SCHEDULE[i]);
     }
 
-    const newWeeks = generatePlanData(raceName, raceDate, raceType, targetTime, daySchedule);
+    // Read manako mode
+    const manakoCheckbox = document.getElementById('input-manako');
+    const manakoMode = manakoCheckbox ? manakoCheckbox.checked : false;
+
+    const newWeeks = generatePlanData(raceName, raceDate, raceType, targetTime, daySchedule, manakoMode);
     const paces = calcPaces(targetTime, raceType);
 
     // Preserve past days from existing plan (before today)
@@ -600,7 +719,7 @@ const App = {
     }
 
     this.state = {
-      raceName, raceDate, raceType, targetTime, daySchedule,
+      raceName, raceDate, raceType, targetTime, daySchedule, manakoMode,
       paces: {
         jog: formatPace(paces.jog, true),
         tempo: formatPace(paces.tempo, true),
@@ -731,7 +850,7 @@ const App = {
     const isRaceDay = this.state.raceDate && todayStr === this.state.raceDate;
     const isActive = this.state.activeWorkout && this.state.activeWorkout.date === todayStr;
     let btnHTML = '';
-    if (!isRaceDay && w.type !== 'rest') {
+    if (!isRaceDay && w.type !== 'rest' && w.type !== 'race') {
       if (done) {
         btnHTML = '<button class="start-btn completed-btn">\u2713 完了済み</button>';
       } else if (isActive) {
@@ -880,6 +999,9 @@ const App = {
       html += '<div class="plan-week"><div class="plan-week-header mt-lg">' + label + '</div><ul class="plan-list mx">';
 
       for (const day of week.days) {
+        // Skip days after race
+        if (this.state.raceDate && day.date > this.state.raceDate) continue;
+
         const done = this.isCompleted(day.date);
         const d = fromISO(day.date);
         const dateLabel = (d.getMonth() + 1) + '/' + d.getDate();
@@ -914,7 +1036,8 @@ const App = {
           }
         }
 
-        html += '<li class="plan-item" onclick="App.openEditWorkout(\'' + day.date + '\')">' +
+        const keyClass = day.isKeyWorkout ? ' key-workout' : '';
+        html += '<li class="plan-item' + keyClass + '" onclick="App.openEditWorkout(\'' + day.date + '\')">' +
           '<span class="plan-dot" style="background:' + (TYPE_COLORS[day.type] || 'var(--color-fill-primary)') + '"></span>' +
           '<span class="plan-day">' + day.dayJa + '</span>' +
           '<span class="plan-date">' + dateLabel + '</span>' +
@@ -1646,6 +1769,11 @@ function findTodayWorkout(plan, todayStr) {
 
 function formatWorkoutDescription(day) {
   if (day.type === 'rest') return 'レスト';
+  if (day.type === 'race') return day.name || '大会当日';
+  // Custom named workouts (manako etc): use name directly
+  if (day.name && day.name !== TYPE_JA[day.type]) {
+    return day.name;
+  }
   if (day.type === 'interval' && day.detail) {
     return day.detail.reps + '（' + day.pace + '/km）';
   }
