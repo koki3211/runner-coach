@@ -23,7 +23,6 @@
       overscroll-behavior: none;
     }
     body {
-      padding-top: var(--safe-area-top);
       padding-bottom: calc(var(--tab-bar-height) + var(--safe-area-bottom));
       min-height: 100dvh;
     }
@@ -32,8 +31,8 @@
 
     /* Nav Bar */
     .nav-bar {
-      position: sticky; top: var(--safe-area-top); z-index: 100;
-      padding: var(--space-md) var(--space-base);
+      position: sticky; top: 0; z-index: 100;
+      padding: calc(var(--safe-area-top) + var(--space-md)) var(--space-base) var(--space-md);
       background: var(--color-bg-primary);
       border-bottom: 0.5px solid var(--color-separator);
       display: flex; align-items: flex-start; justify-content: space-between;
@@ -747,6 +746,16 @@
     }
     .edit-field { margin-bottom: var(--space-lg); }
     .edit-field .form-label { margin-bottom: var(--space-sm); }
+    .edit-dist-duration-row {
+      display: flex; align-items: center; gap: var(--space-xs);
+    }
+    .edit-dist-duration-row .form-input {
+      flex: 1; min-width: 0; text-align: center;
+    }
+    .edit-unit-label {
+      font-size: var(--font-size-subhead); color: var(--color-label-secondary);
+      white-space: nowrap; flex-shrink: 0;
+    }
     .edit-select {
       -webkit-appearance: none; appearance: none;
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238E8E93' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
