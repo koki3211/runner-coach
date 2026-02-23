@@ -471,6 +471,8 @@
     .friend-week { display: flex; gap: 3px; margin-top: var(--space-sm); }
     .friend-week-dot { width: 8px; height: 8px; border-radius: 2px; background: var(--color-fill-tertiary); }
     .friend-week-dot.done { background: var(--color-success); }
+    .friend-week-dot.done-excellent { background: #FFD700; }
+    .friend-week-dot.done-partial { background: var(--color-warning, #FF9500); }
     .friend-add-row {
       display: flex; gap: var(--space-sm); padding: 0 var(--space-base);
     }
@@ -658,6 +660,56 @@
       animation: slideUp var(--duration-normal) var(--easing-default) 0.7s both;
     }
     .completion-close-btn:active { transform: scale(0.95); }
+
+    /* Completion Input Modal */
+    .completion-input-overlay {
+      position: fixed; inset: 0; z-index: 999; display: none;
+      align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.5); padding: var(--space-xl);
+      -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+    }
+    .completion-input-overlay.show { display: flex; animation: fadeIn var(--duration-normal) var(--easing-default); }
+    .completion-input-card {
+      background: var(--color-bg-primary); border-radius: var(--radius-lg);
+      padding: var(--space-xl); width: 100%; max-width: 340px;
+      text-align: center;
+    }
+    .completion-input-title {
+      font-family: var(--font-family-display); font-size: var(--font-size-headline);
+      font-weight: var(--font-weight-bold); margin-bottom: var(--space-xs);
+    }
+    .completion-input-plan {
+      font-size: var(--font-size-subhead); color: var(--color-label-secondary);
+      margin-bottom: var(--space-lg);
+    }
+    .completion-input-field {
+      display: flex; align-items: center; justify-content: center; gap: var(--space-sm);
+      margin-bottom: var(--space-lg);
+    }
+    .completion-input-field input {
+      width: 100px; text-align: center; font-family: var(--font-family-data);
+      font-size: var(--font-size-title2); font-weight: var(--font-weight-bold);
+      padding: var(--space-sm) var(--space-base);
+      border: 2px solid var(--color-separator); border-radius: var(--radius-md);
+      background: var(--color-bg-secondary); color: var(--color-label-primary);
+    }
+    .completion-input-field input:focus { border-color: var(--color-brand-primary); outline: none; }
+    .completion-input-field .unit {
+      font-size: var(--font-size-headline); color: var(--color-label-secondary);
+      font-weight: var(--font-weight-semibold);
+    }
+    .completion-input-btns { display: flex; gap: var(--space-sm); }
+    .completion-input-btns button {
+      flex: 1; padding: var(--space-md); border: none; border-radius: var(--radius-md);
+      font-family: var(--font-family-body); font-size: var(--font-size-callout);
+      font-weight: var(--font-weight-semibold); cursor: pointer;
+    }
+    .completion-input-btns .cancel-btn {
+      background: var(--color-fill-tertiary); color: var(--color-label-primary);
+    }
+    .completion-input-btns .confirm-btn {
+      background: var(--color-brand-primary); color: #fff;
+    }
 
     /* Tab Bar */
     .tab-bar {
@@ -1308,6 +1360,22 @@
 
 <!-- FRIEND PLAN OVERLAY -->
 <div id="friend-plan-overlay" class="friend-plan-overlay"></div>
+
+<!-- COMPLETION INPUT MODAL -->
+<div id="completion-input-overlay" class="completion-input-overlay">
+  <div class="completion-input-card">
+    <div class="completion-input-title" id="completion-input-title"></div>
+    <div class="completion-input-plan" id="completion-input-plan"></div>
+    <div class="completion-input-field">
+      <input type="number" id="completion-input-value" min="0" step="0.1">
+      <span class="unit" id="completion-input-unit">km</span>
+    </div>
+    <div class="completion-input-btns">
+      <button class="cancel-btn" onclick="App.cancelCompletionInput()">キャンセル</button>
+      <button class="confirm-btn" onclick="App.confirmCompletionInput()">完了</button>
+    </div>
+  </div>
+</div>
 
 <!-- COMPLETION OVERLAY -->
 <div id="completion-overlay" class="completion-overlay">

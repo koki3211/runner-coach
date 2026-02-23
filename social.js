@@ -106,6 +106,7 @@ const Social = {
       },
       completed: state.completed || {},
       actualDist: state.actualDist || {},
+      actualDuration: state.actualDuration || {},
       strengthPlan: state.strengthPlan || {},
       strengthPatterns: state.strengthPatterns || [],
       plan: state.plan || [],
