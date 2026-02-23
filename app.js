@@ -1506,13 +1506,13 @@ const App = {
       const bActive = isActiveWorkout(b.activeWorkout);
       if (aActive && !bActive) return -1;
       if (!aActive && bActive) return 1;
-      return Social.calcStreak(b.completed) - Social.calcStreak(a.completed);
+      return Social.calcStreak(b.completed, b.plan) - Social.calcStreak(a.completed, a.plan);
     });
 
     const todayStr = toISO(today());
     listEl.innerHTML = '<div class="section"><div class="section-header">仲間 (' + friends.length + ')</div>' +
       friends.map(f => {
-        const streak = Social.calcStreak(f.completed);
+        const streak = Social.calcStreak(f.completed, f.plan);
         const isDone = f.completed && f.completed[todayStr];
         const sett = f.settings || {};
         const goalText = sett.raceName ? sett.raceName + (sett.targetTime ? '・目標 ' + sett.targetTime : '') : '目標未設定';
