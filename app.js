@@ -1355,13 +1355,19 @@ const App = {
     // Today's workout status
     const todayHTML = buildTodayStatusHTML(workout, done);
 
-    // Week dots
+    // Week dots with achievement level
     const monday = getMonday(new Date());
     let dots = '';
     for (let i = 0; i < 7; i++) {
       const d = toISO(addDays(monday, i));
-      const cls = this.isCompleted(d) ? 'done' : (d <= todayStr ? '' : 'planned');
-      dots += '<div class="friend-week-dot ' + cls + '"></div>';
+      if (this.isCompleted(d)) {
+        const level = getAchievementLevel(d, this.state.plan, completed, this.state.actualDist, this.state.actualDuration);
+        const cls = level === 'excellent' ? 'done-excellent' : level === 'partial' ? 'done-partial' : 'done';
+        dots += '<div class="friend-week-dot ' + cls + '"></div>';
+      } else {
+        const cls = d <= todayStr ? '' : 'planned';
+        dots += '<div class="friend-week-dot ' + cls + '"></div>';
+      }
     }
 
     return '<div class="section" style="padding-bottom:0"><div class="section-header">あなた</div>' +
@@ -1481,8 +1487,14 @@ const App = {
         let dots = '';
         for (let i = 0; i < 7; i++) {
           const d = toISO(addDays(monday, i));
-          const cls = f.completed && f.completed[d] ? 'done' : (d <= todayStr ? '' : 'planned');
-          dots += '<div class="friend-week-dot ' + cls + '"></div>';
+          if (f.completed && f.completed[d]) {
+            const level = getAchievementLevel(d, f.plan, f.completed, f.actualDist, f.actualDuration);
+            const cls = level === 'excellent' ? 'done-excellent' : level === 'partial' ? 'done-partial' : 'done';
+            dots += '<div class="friend-week-dot ' + cls + '"></div>';
+          } else {
+            const cls = d <= todayStr ? '' : 'planned';
+            dots += '<div class="friend-week-dot ' + cls + '"></div>';
+          }
         }
 
         const hasPlan = f.plan && f.plan.length > 0;
@@ -2013,32 +2025,133 @@ const App = {
   },
 
   completeToday() {
-    const todayStr = toISO(today());
     const workout = this.getTodayWorkout();
+    // Show input modal for distance/time
+    const overlay = document.getElementById('completion-input-overlay');
+    const titleEl = document.getElementById('completion-input-title');
+    const planEl = document.getElementById('completion-input-plan');
+    const inputEl = document.getElementById('completion-input-value');
+    const unitEl = document.getElementById('completion-input-unit');
+
+    const name = workout ? (TYPE_JA[workout.type] || workout.name) : 'ワークアウト';
+    titleEl.textContent = name + ' 完了';
+
+    // Determine input mode: distance or duration
+    if (workout && workout.dist > 0) {
+      planEl.textContent = '予定: ' + formatDist(workout.dist, workout.type) + 'km';
+      inputEl.value = formatDist(workout.dist, workout.type);
+      inputEl.step = '0.1';
+      unitEl.textContent = 'km';
+      this._completionInputMode = 'dist';
+    } else if (workout && workout.duration > 0) {
+      planEl.textContent = '予定: ' + workout.duration + '分';
+      inputEl.value = workout.duration;
+      inputEl.step = '1';
+      unitEl.textContent = '分';
+      this._completionInputMode = 'duration';
+    } else {
+      // No distance/duration — complete immediately
+      this._finishCompletion(workout, null);
+      return;
+    }
+    this._pendingWorkout = workout;
+    inputEl.select();
+    overlay.classList.add('show');
+  },
+
+  cancelCompletionInput() {
+    document.getElementById('completion-input-overlay').classList.remove('show');
+    this._pendingWorkout = null;
+  },
+
+  confirmCompletionInput() {
+    const inputEl = document.getElementById('completion-input-value');
+    const actual = parseFloat(inputEl.value);
+    const workout = this._pendingWorkout;
+    document.getElementById('completion-input-overlay').classList.remove('show');
+    this._pendingWorkout = null;
+    this._finishCompletion(workout, isNaN(actual) ? null : actual);
+  },
+
+  _finishCompletion(workout, actualValue) {
+    const todayStr = toISO(today());
     if (!this.state.completed) this.state.completed = {};
     this.state.completed[todayStr] = true;
     this.state.activeWorkout = null;
+
+    // Store actual value
+    if (actualValue !== null && actualValue !== undefined) {
+      if (this._completionInputMode === 'duration') {
+        if (!this.state.actualDuration) this.state.actualDuration = {};
+        this.state.actualDuration[todayStr] = actualValue;
+      } else {
+        this.setActualDist(todayStr, actualValue);
+      }
+    }
+
     saveState(this.state);
-    this.showCompletion(workout);
+    const rate = calcAchievementRate(workout, actualValue, this._completionInputMode);
+    this.showCompletion(workout, rate, actualValue);
     this.renderToday();
     this.renderPlan();
     if (typeof Social !== 'undefined' && Social.enabled) {
       Social.clearActiveWorkout();
       Social.syncToCloud(this.state);
     }
+    this._completionInputMode = null;
   },
 
   // --- Completion Overlay ---
-  showCompletion(workout) {
+  showCompletion(workout, rate, actualValue) {
     const overlay = document.getElementById('completion-overlay');
-    document.getElementById('completion-title').textContent = 'ナイスラン!';
-    document.getElementById('completion-subtitle').textContent =
-      workout ? workout.name + ' 完了' : 'ワークアウト完了';
-    const dist = workout ? Math.round(workout.dist) : 0;
-    document.getElementById('completion-stats').innerHTML =
-      '<div class="completion-stat"><div class="stat-value">' + dist + '</div><div class="stat-label">km</div></div>';
+    const iconEl = overlay.querySelector('.completion-icon');
+    let title, subtitle, iconBg;
+
+    if (rate === null || rate === undefined) {
+      title = 'ナイスラン!';
+      subtitle = workout ? workout.name + ' 完了' : 'ワークアウト完了';
+      iconBg = 'linear-gradient(135deg, var(--color-success), #2fb851)';
+    } else if (rate >= 100) {
+      title = 'パーフェクト!';
+      subtitle = workout ? workout.name + ' 完遂' : 'ワークアウト完遂';
+      iconBg = 'linear-gradient(135deg, #FFD700, #FFA500)';
+    } else if (rate >= 80) {
+      title = 'ナイスラン!';
+      subtitle = workout ? workout.name + ' ' + Math.round(rate) + '%達成' : 'ワークアウト完了';
+      iconBg = 'linear-gradient(135deg, var(--color-success), #2fb851)';
+    } else {
+      title = 'よく頑張った!';
+      subtitle = workout ? workout.name + ' ' + Math.round(rate) + '%達成' : 'ワークアウト完了';
+      iconBg = 'linear-gradient(135deg, #FF9500, #FF6B00)';
+    }
+
+    iconEl.style.background = iconBg;
+    document.getElementById('completion-title').textContent = title;
+    document.getElementById('completion-subtitle').textContent = subtitle;
+
+    // Stats
+    let statsHTML = '';
+    if (actualValue !== null && actualValue !== undefined) {
+      const unit = this._completionInputMode === 'duration' ? '分' : 'km';
+      statsHTML = '<div class="completion-stat"><div class="stat-value">' +
+        actualValue + '</div><div class="stat-label">' + unit + '</div></div>';
+      if (rate !== null) {
+        statsHTML += '<div class="completion-stat"><div class="stat-value">' +
+          Math.round(rate) + '%</div><div class="stat-label">達成率</div></div>';
+      }
+    } else {
+      const dist = workout ? Math.round(workout.dist) : 0;
+      if (dist > 0) {
+        statsHTML = '<div class="completion-stat"><div class="stat-value">' +
+          dist + '</div><div class="stat-label">km</div></div>';
+      }
+    }
+    document.getElementById('completion-stats').innerHTML = statsHTML;
+
     overlay.classList.add('show');
-    launchConfetti();
+    // Confetti amount varies with achievement
+    const confettiCount = (rate === null || rate >= 100) ? 60 : (rate >= 80 ? 40 : 20);
+    launchConfetti(confettiCount);
     if (navigator.vibrate) navigator.vibrate([50, 30, 100]);
   },
 
@@ -2146,11 +2259,40 @@ function estimateTime(dist, paceStr) {
   return h > 0 ? h + ':' + String(m).padStart(2, '0') : m + '分';
 }
 
-function launchConfetti() {
+function calcAchievementRate(workout, actualValue, mode) {
+  if (actualValue === null || actualValue === undefined || !workout) return null;
+  const planned = (mode === 'duration') ? workout.duration : workout.dist;
+  if (!planned || planned <= 0) return null;
+  return (actualValue / planned) * 100;
+}
+
+function getAchievementLevel(dateStr, plan, completed, actualDist, actualDuration) {
+  if (!completed || !completed[dateStr]) return null; // not done
+  const workout = findTodayWorkout(plan, dateStr);
+  if (!workout || workout.type === 'rest') return null;
+  // Check actual distance first, then duration
+  if (actualDist && actualDist[dateStr] !== undefined && workout.dist > 0) {
+    const rate = (actualDist[dateStr] / workout.dist) * 100;
+    if (rate >= 100) return 'excellent';
+    if (rate >= 80) return 'good';
+    return 'partial';
+  }
+  if (actualDuration && actualDuration[dateStr] !== undefined && workout.duration > 0) {
+    const rate = (actualDuration[dateStr] / workout.duration) * 100;
+    if (rate >= 100) return 'excellent';
+    if (rate >= 80) return 'good';
+    return 'partial';
+  }
+  // No actual data recorded — assume good (legacy or toggled from plan)
+  return 'good';
+}
+
+function launchConfetti(count) {
+  count = count || 60;
   const c = document.getElementById('confetti-container');
   c.innerHTML = '';
   const colors = ['#007AFF', '#34C759', '#FF9500', '#5856D6', '#FF3B30', '#FFCC00', '#5AC8FA'];
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < count; i++) {
     const el = document.createElement('div');
     el.classList.add('confetti');
     el.style.left = Math.random() * 100 + '%';
