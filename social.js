@@ -234,15 +234,25 @@ const Social = {
   },
 
   // --- Streak Calculation ---
-  calcStreak(completed) {
+  calcStreak(completed, plan) {
     if (!completed) return 0;
+    // Build a set of rest dates from the plan
+    const restDates = new Set();
+    if (plan) {
+      for (const week of plan) {
+        for (const day of week.days) {
+          if (day.type === 'rest') restDates.add(day.date);
+        }
+      }
+    }
     let streak = 0;
     const d = new Date();
     d.setHours(0, 0, 0, 0);
-    // Start from today; if not done, start from yesterday
-    if (!completed[toISO(d)]) d.setDate(d.getDate() - 1);
-    while (completed[toISO(d)]) {
-      streak++;
+    // Start from today or yesterday
+    if (!completed[toISO(d)] && !restDates.has(toISO(d))) d.setDate(d.getDate() - 1);
+    while (completed[toISO(d)] || restDates.has(toISO(d))) {
+      if (completed[toISO(d)]) streak++;
+      // Rest days are skipped (don't break streak, don't count)
       d.setDate(d.getDate() - 1);
     }
     return streak;
