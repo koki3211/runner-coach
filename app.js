@@ -331,6 +331,79 @@ function calcMonthlyData(plan, completed) {
   }));
 }
 
+function buildWeeklyActualChart(actualDist, completed, plan) {
+  // Build past 6 weeks (Mon-Sun) ending with current week
+  const todayD = today();
+  const thisMonday = getMonday(todayD);
+  const weeks = [];
+  for (let w = 5; w >= 0; w--) {
+    const mon = addDays(thisMonday, -7 * w);
+    let dist = 0;
+    for (let d = 0; d < 7; d++) {
+      const dateStr = toISO(addDays(mon, d));
+      if (dateStr > toISO(todayD)) break; // don't include future
+      if (actualDist && actualDist[dateStr] !== undefined) {
+        dist += actualDist[dateStr];
+      } else if (completed && completed[dateStr]) {
+        // Fallback: use planned distance if completed but no actualDist
+        const workout = findTodayWorkout(plan, dateStr);
+        if (workout) dist += workout.dist;
+      }
+    }
+    const weekLabel = w === 0 ? '今週' : w + 'w前';
+    weeks.push({ dist: roundKm(dist), label: weekLabel, isCurrent: w === 0 });
+  }
+  // Filter to only weeks with data or current week
+  const filtered = weeks.filter((w, i) => w.dist > 0 || w.isCurrent || i >= weeks.length - 1);
+  if (filtered.length === 0) return '';
+  const maxDist = Math.max(...filtered.map(w => w.dist), 1);
+  return filtered.map(w => {
+    const h = Math.round((w.dist / maxDist) * 80);
+    const color = w.isCurrent ? 'var(--color-brand-primary)' : 'var(--color-fill-primary)';
+    return '<div class="bar-col"><div class="bar-value">' + w.dist + '</div>' +
+      '<div class="bar" style="height:' + h + 'px;background:' + color + '"></div>' +
+      '<div class="bar-label">' + w.label + '</div></div>';
+  }).join('');
+}
+
+function buildMonthlyActualChart(actualDist, completed, plan) {
+  // Build past 6 months ending with current month
+  const todayD = today();
+  const todayStr = toISO(todayD);
+  const months = [];
+  for (let m = 5; m >= 0; m--) {
+    const ref = new Date(todayD.getFullYear(), todayD.getMonth() - m, 1);
+    const year = ref.getFullYear();
+    const month = ref.getMonth(); // 0-indexed
+    const mk = year + '-' + String(month + 1).padStart(2, '0');
+    // Sum actual distances for all days in this month up to today
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    let dist = 0;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+      if (dateStr > todayStr) break; // don't include future
+      if (actualDist && actualDist[dateStr] !== undefined) {
+        dist += actualDist[dateStr];
+      } else if (completed && completed[dateStr]) {
+        const workout = findTodayWorkout(plan, dateStr);
+        if (workout) dist += workout.dist;
+      }
+    }
+    const isCurrent = m === 0;
+    months.push({ dist: roundKm(dist), label: MONTHS_JA[month], isCurrent: isCurrent });
+  }
+  const filtered = months.filter((m, i) => m.dist > 0 || m.isCurrent || i >= months.length - 1);
+  if (filtered.length === 0) return '';
+  const maxDist = Math.max(...filtered.map(m => m.dist), 1);
+  return filtered.map(m => {
+    const h = Math.round((m.dist / maxDist) * 80);
+    const color = m.isCurrent ? 'var(--color-brand-primary)' : 'var(--color-fill-primary)';
+    return '<div class="bar-col"><div class="bar-value">' + m.dist + '</div>' +
+      '<div class="bar" style="height:' + h + 'px;background:' + color + '"></div>' +
+      '<div class="bar-label">' + m.label + '</div></div>';
+  }).join('');
+}
+
 // ============================================================
 // App
 // ============================================================
@@ -836,37 +909,11 @@ const App = {
         '<span class="day-type" style="background:' + TYPE_COLORS[d.type] + '">' + TYPE_LABELS[d.type] + '</span></div>';
     }).join('');
 
-    // Weekly bar chart
-    const currentIdx = this.state.plan.indexOf(week);
-    const barWeeks = [];
-    for (let i = Math.max(0, currentIdx - 2); i < Math.min(this.state.plan.length, currentIdx + 5); i++) {
-      barWeeks.push(this.state.plan[i]);
-    }
-    const maxDist = Math.max(...barWeeks.map(bw => bw.totalDist));
-    const barChartHTML = barWeeks.map(bw => {
-      const h = Math.round((bw.totalDist / maxDist) * 80);
-      const isCurr = bw.weekNum === week.weekNum;
-      const compDist = roundKm(bw.days.filter(d => this.isCompleted(d.date)).reduce((s, d) => s + d.dist, 0));
-      const showDist = isCurr ? Math.round(compDist) : Math.round(bw.totalDist);
-      const color = isCurr ? 'var(--color-brand-primary)' : bw.weekNum < week.weekNum ? 'var(--color-fill-primary)' : 'var(--color-fill-tertiary)';
-      const border = bw.weekNum > week.weekNum ? ';border:1px dashed var(--color-separator)' : '';
-      return '<div class="bar-col"><div class="bar-value">' + showDist + '</div><div class="bar" style="height:' + h + 'px;background:' + color + border + '"></div><div class="bar-label">W' + bw.weekNum + '</div></div>';
-    }).join('');
+    // Weekly bar chart — actual distance for past 6 weeks
+    const barChartHTML = buildWeeklyActualChart(this.state.actualDist, this.state.completed, this.state.plan);
 
-    // Monthly bar chart
-    const monthly = calcMonthlyData(this.state.plan, this.state.completed);
-    const maxMonthly = Math.max(...monthly.map(m => m.planned), 1);
-    const monthlyChartHTML = monthly.map(m => {
-      const hPlan = Math.round((m.planned / maxMonthly) * 80);
-      const hComp = Math.round((m.completed / maxMonthly) * 80);
-      return '<div class="bar-col">' +
-        '<div class="bar-value">' + Math.round(m.completed) + '</div>' +
-        '<div style="position:relative;width:100%;max-width:32px;height:' + hPlan + 'px">' +
-        '<div class="bar" style="position:absolute;bottom:0;left:0;right:0;height:100%;background:var(--color-fill-tertiary);border-radius:var(--radius-sm) var(--radius-sm) 0 0"></div>' +
-        '<div class="bar" style="position:absolute;bottom:0;left:0;right:0;height:' + hComp + 'px;background:var(--color-brand-primary);border-radius:var(--radius-sm) var(--radius-sm) 0 0"></div>' +
-        '</div>' +
-        '<div class="bar-label">' + m.label + '</div></div>';
-    }).join('');
+    // Monthly bar chart — actual distance for past 6 months
+    const monthlyChartHTML = buildMonthlyActualChart(this.state.actualDist, this.state.completed, this.state.plan);
 
     let heroDetail;
     if (w.dist > 0) {
@@ -954,11 +1001,9 @@ const App = {
       '</div></div>' +
       '<div class="section" style="padding-top:0"><div class="section-header">週間走行距離</div><div class="card">' +
         '<div class="bar-chart">' + barChartHTML + '</div>' +
-        '<div class="text-sm text-secondary" style="text-align:center;margin-top:var(--space-xs)">W' + week.weekNum + ': ' + weekCompletedDist + ' / ' + week.totalDist + ' km</div>' +
       '</div></div>' +
       '<div class="section" style="padding-top:0"><div class="section-header">月間走行距離</div><div class="card">' +
         '<div class="bar-chart">' + monthlyChartHTML + '</div>' +
-        '<div class="text-sm text-secondary" style="text-align:center;margin-top:var(--space-xs)">実績 / 予定（km）</div>' +
       '</div></div>';
   },
 
