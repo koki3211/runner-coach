@@ -7,6 +7,6 @@
   "background_color": "#000000",
   "theme_color": "#007AFF",
   "icons": [
-    { "src": "./RuCrew_icon.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "./RuCrew_icon_maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
   ]
 }
