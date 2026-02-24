@@ -1051,10 +1051,22 @@ const App = {
     const pat = patterns.find(p => p.id === sDay.patternId);
     const name = pat ? pat.name : '筋トレ';
     const isDone = sDay.done;
+    const isActive = this.state.activeStrengthWorkout && this.state.activeStrengthWorkout.date === todayStr;
     const exercises = pat && pat.exercises ? pat.exercises : [];
     const exerciseLabel = exercises.length > 0
       ? '<div style="font-size:var(--font-size-caption2);opacity:0.7;margin-top:2px">' + exercises.map(e => e.name).join(' / ') + '</div>'
       : '';
+
+    let btnHTML;
+    if (isDone) {
+      btnHTML = '<button class="strength-hero-btn done">✓ 完了済み</button>';
+    } else if (isActive) {
+      btnHTML = '<button class="strength-hero-btn active-btn" onclick="App.toggleStrengthDone(\'' + todayStr + '\')">' +
+        '<span class="active-pulse"></span>トレーニング完了</button>';
+    } else {
+      btnHTML = '<button class="strength-hero-btn" onclick="App.startStrengthWorkout()">' +
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>スタート</button>';
+    }
 
     return '<div class="today-strength-hero">' +
       '<div class="strength-hero-info">' +
@@ -1062,9 +1074,7 @@ const App = {
         '<div class="strength-hero-name">💪 ' + escapeHtml(name) + '</div>' +
         exerciseLabel +
       '</div>' +
-      '<button class="strength-hero-btn' + (isDone ? ' done' : '') + '" onclick="App.toggleStrengthDone(\'' + todayStr + '\')">' +
-        (isDone ? '✓ 完了済み' : 'トレーニング完了') +
-      '</button>' +
+      btnHTML +
     '</div>';
   },
 
@@ -1271,6 +1281,21 @@ const App = {
     if (typeof Social !== 'undefined' && Social.enabled) Social.syncToCloud(this.state);
   },
 
+  startStrengthWorkout() {
+    const todayStr = toISO(today());
+    const sDay = this.getStrengthDay(todayStr);
+    if (!sDay) return;
+    const patterns = this.getStrengthPatterns();
+    const pat = patterns.find(p => p.id === sDay.patternId);
+    const name = pat ? pat.name : '筋トレ';
+    this.state.activeStrengthWorkout = { date: todayStr, patternName: name, startedAt: Date.now() };
+    saveState(this.state);
+    this.renderToday();
+    if (typeof Social !== 'undefined' && Social.enabled) {
+      Social.setActiveWorkout({ workoutName: name, type: 'strength' });
+    }
+  },
+
   toggleStrengthDone(dateStr) {
     const day = this.getStrengthDay(dateStr);
     if (!day) return;
@@ -1398,10 +1423,13 @@ const App = {
       day.done = true;
       this.setStrengthDay(dateStr, day);
     }
+    this.state.activeStrengthWorkout = null;
+    saveState(this.state);
     document.getElementById('strength-record-overlay').classList.remove('show');
     this._showStrengthCompletionCelebration(dateStr);
     this.renderPlan();
     this.renderToday();
+    if (typeof Social !== 'undefined' && Social.enabled) Social.clearActiveWorkout();
   },
 
   saveStrengthRecordModal() {
@@ -1435,10 +1463,13 @@ const App = {
       this.setStrengthDay(dateStr, day);
     }
 
+    this.state.activeStrengthWorkout = null;
+    saveState(this.state);
     document.getElementById('strength-record-overlay').classList.remove('show');
     this._showStrengthCompletionCelebration(dateStr);
     this.renderPlan();
     this.renderToday();
+    if (typeof Social !== 'undefined' && Social.enabled) Social.clearActiveWorkout();
   },
 
   _showStrengthCompletionCelebration(dateStr) {

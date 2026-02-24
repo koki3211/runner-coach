@@ -1218,11 +1218,12 @@
     }
     .today-strength-hero .strength-hero-btn:active { transform: scale(0.95); }
     .today-strength-hero .strength-hero-btn.done {
-      background: rgba(255,255,255,0.35);
+      background: rgba(255,255,255,0.35); pointer-events: none;
     }
 
     /* Active Workout Button */
-    .start-btn.active-btn {
+    .start-btn.active-btn,
+    .strength-hero-btn.active-btn {
       background: var(--color-success);
       animation: activeGlow 2s ease-in-out infinite;
     }
