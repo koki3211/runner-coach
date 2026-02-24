@@ -660,11 +660,23 @@ const App = {
 
   switchPlanType(type) {
     this._planViewType = type;
-    document.querySelectorAll('.plan-type-tab').forEach(t => {
+    document.querySelectorAll('[data-plan-type]').forEach(t => {
       t.classList.toggle('active', t.dataset.planType === type);
     });
     document.getElementById('plan-run-content').style.display = type === 'run' ? 'block' : 'none';
     document.getElementById('plan-strength-content').style.display = type === 'strength' ? 'block' : 'none';
+  },
+
+  // --- Goal Type Tab ---
+  _goalViewType: 'run',
+
+  switchGoalType(type) {
+    this._goalViewType = type;
+    document.querySelectorAll('[data-goal-type]').forEach(t => {
+      t.classList.toggle('active', t.dataset.goalType === type);
+    });
+    document.getElementById('goal-run-content').style.display = type === 'run' ? 'block' : 'none';
+    document.getElementById('goal-strength-content').style.display = type === 'strength' ? 'block' : 'none';
   },
 
   // --- Tab Switching ---
@@ -1640,13 +1652,15 @@ const App = {
     const patternColorMap = {};
     patterns.forEach((p, i) => { patternColorMap[p.id] = STRENGTH_COLORS[i % STRENGTH_COLORS.length]; });
 
-    // Strength goals display
+    // Strength goals display — motivational card
     const goals = this.getStrengthGoals().filter(g => g.text);
     let html = '';
     if (goals.length > 0) {
-      html += '<div class="strength-goals-display">' +
-        goals.map(g => '<span class="strength-goal-chip">' + escapeHtml(g.text) + '</span>').join('') +
-      '</div>';
+      html += '<div class="strength-goals-card">' +
+        '<div class="strength-goals-card-header">🎯 目標</div>' +
+        '<div class="strength-goals-card-list">' +
+        goals.map(g => '<div class="strength-goals-card-item">' + escapeHtml(g.text) + '</div>').join('') +
+        '</div></div>';
     }
 
     // Build run plan lookup for context display
@@ -1680,7 +1694,7 @@ const App = {
           options += '<option value="' + p.id + '"' + (p.id === selectedId ? ' selected' : '') + '>' + escapeHtml(p.name) + '</option>';
         }
 
-        // Run menu context: yesterday, today, tomorrow (always show, including rest)
+        // Run menu context: yesterday, today, tomorrow (type label only)
         let runContext = '';
         {
           const contextDays = [-1, 0, 1];
@@ -1690,13 +1704,8 @@ const App = {
             const runDay = runDayMap[contextDate];
             if (runDay) {
               const prefix = offset === -1 ? '前' : offset === 0 ? '当' : '翌';
-              if (runDay.type === 'rest') {
-                labels.push(prefix + ':Rest');
-              } else {
-                const typeLabel = TYPE_LABELS[runDay.type] || runDay.type;
-                const dist = formatDist(runDay.dist, runDay.type);
-                labels.push(prefix + ':' + typeLabel + ' ' + dist + 'km');
-              }
+              const typeLabel = TYPE_LABELS[runDay.type] || runDay.type;
+              labels.push(prefix + ':' + typeLabel);
             }
           }
           if (labels.length > 0) {
@@ -2455,9 +2464,15 @@ const App = {
     const planEl = document.getElementById('completion-input-plan');
     const inputEl = document.getElementById('completion-input-value');
     const unitEl = document.getElementById('completion-input-unit');
+    const distField = document.getElementById('completion-dist-field');
+    const distInput = document.getElementById('completion-dist-value');
 
     const name = workout ? (TYPE_JA[workout.type] || workout.name) : 'ワークアウト';
     titleEl.textContent = name + ' 完了';
+
+    // Reset extra distance field
+    distField.style.display = 'none';
+    distInput.value = '';
 
     // Determine input mode: distance or duration
     if (workout && workout.dist > 0) {
@@ -2472,6 +2487,8 @@ const App = {
       inputEl.step = '1';
       unitEl.textContent = '分';
       this._completionInputMode = 'duration';
+      // Show extra distance input for duration-only workouts
+      distField.style.display = 'flex';
     } else {
       // No distance/duration — complete immediately
       this._finishCompletion(workout, null);
@@ -2491,6 +2508,10 @@ const App = {
     const inputEl = document.getElementById('completion-input-value');
     const actual = parseFloat(inputEl.value);
     const workout = this._pendingWorkout;
+    // Capture extra distance from duration-only workouts
+    const distInput = document.getElementById('completion-dist-value');
+    const extraDist = distInput ? parseFloat(distInput.value) : NaN;
+    this._completionExtraDist = isNaN(extraDist) ? null : extraDist;
     document.getElementById('completion-input-overlay').classList.remove('show');
     this._pendingWorkout = null;
     this._finishCompletion(workout, isNaN(actual) ? null : actual);
@@ -2507,10 +2528,15 @@ const App = {
       if (this._completionInputMode === 'duration') {
         if (!this.state.actualDuration) this.state.actualDuration = {};
         this.state.actualDuration[todayStr] = actualValue;
+        // Also store distance if provided
+        if (this._completionExtraDist !== null && this._completionExtraDist !== undefined) {
+          this.setActualDist(todayStr, this._completionExtraDist);
+        }
       } else {
         this.setActualDist(todayStr, actualValue);
       }
     }
+    this._completionExtraDist = null;
 
     saveState(this.state);
     const rate = calcAchievementRate(workout, actualValue, this._completionInputMode);
