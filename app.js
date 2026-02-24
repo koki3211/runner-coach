@@ -12,6 +12,7 @@ const TYPE_COLORS = {
   interval: 'var(--color-interval)', tempo: 'var(--color-tempo-run)',
   long: 'var(--color-long-run)', race: 'var(--color-interval)'
 };
+const STRENGTH_COLORS = ['#AF52DE', '#5856D6', '#FF9500', '#FF2D55', '#30B0C7', '#34C759', '#FF3B30', '#007AFF'];
 const TYPE_LABELS = {
   jog: 'Jog', rest: 'Rest', interval: 'Intv',
   tempo: 'Tempo', long: 'Long', race: 'Race'
@@ -1061,8 +1062,8 @@ const App = {
     if (isDone) {
       btnHTML = '<button class="strength-hero-btn done">✓ 完了済み</button>';
     } else if (isActive) {
-      btnHTML = '<button class="strength-hero-btn active-btn" onclick="App.toggleStrengthDone(\'' + todayStr + '\')">' +
-        '<span class="active-pulse"></span>トレーニング完了</button>';
+      btnHTML = '<button class="strength-hero-btn active-btn" onclick="App.openStrengthRecordModal(\'' + todayStr + '\')">' +
+        '<span class="active-pulse"></span>記録する</button>';
     } else {
       btnHTML = '<button class="strength-hero-btn" onclick="App.startStrengthWorkout()">' +
         '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>スタート</button>';
@@ -1294,6 +1295,8 @@ const App = {
     if (typeof Social !== 'undefined' && Social.enabled) {
       Social.setActiveWorkout({ workoutName: name, type: 'strength' });
     }
+    // Open recording modal immediately so user can log during workout
+    this.openStrengthRecordModal(todayStr);
   },
 
   toggleStrengthDone(dateStr) {
@@ -1633,6 +1636,10 @@ const App = {
     if (!this.state || !this.state.plan) return '';
     const patterns = this.getStrengthPatterns();
 
+    // Build pattern → color map
+    const patternColorMap = {};
+    patterns.forEach((p, i) => { patternColorMap[p.id] = STRENGTH_COLORS[i % STRENGTH_COLORS.length]; });
+
     // Strength goals display
     const goals = this.getStrengthGoals().filter(g => g.text);
     let html = '';
@@ -1673,19 +1680,23 @@ const App = {
           options += '<option value="' + p.id + '"' + (p.id === selectedId ? ' selected' : '') + '>' + escapeHtml(p.name) + '</option>';
         }
 
-        // Run menu context: yesterday, today, tomorrow
+        // Run menu context: yesterday, today, tomorrow (always show, including rest)
         let runContext = '';
-        if (selectedId) {
+        {
           const contextDays = [-1, 0, 1];
           const labels = [];
           for (const offset of contextDays) {
             const contextDate = toISO(addDays(d, offset));
             const runDay = runDayMap[contextDate];
-            if (runDay && runDay.type !== 'rest') {
+            if (runDay) {
               const prefix = offset === -1 ? '前' : offset === 0 ? '当' : '翌';
-              const typeLabel = TYPE_LABELS[runDay.type] || runDay.type;
-              const dist = formatDist(runDay.dist, runDay.type);
-              labels.push(prefix + ':' + typeLabel + ' ' + dist + 'km');
+              if (runDay.type === 'rest') {
+                labels.push(prefix + ':Rest');
+              } else {
+                const typeLabel = TYPE_LABELS[runDay.type] || runDay.type;
+                const dist = formatDist(runDay.dist, runDay.type);
+                labels.push(prefix + ':' + typeLabel + ' ' + dist + 'km');
+              }
             }
           }
           if (labels.length > 0) {
@@ -1694,11 +1705,14 @@ const App = {
         }
 
         const sTodayClass = day.date === toISO(today()) ? ' plan-item-today' : '';
-        html += '<li class="plan-item' + sTodayClass + '" data-date="' + day.date + '">' +
+        const patColor = selectedId ? patternColorMap[selectedId] || '' : '';
+        const borderStyle = patColor ? 'border-left:3px solid ' + patColor + ';padding-left:calc(var(--space-base) - 3px)' : '';
+        const selectStyle = patColor ? 'color:' + patColor + ';font-weight:var(--font-weight-semibold)' : '';
+        html += '<li class="plan-item' + sTodayClass + '" data-date="' + day.date + '" style="' + borderStyle + '">' +
           '<span class="plan-day">' + day.dayJa + '</span>' +
           '<span class="plan-date">' + dateLabel + '</span>' +
           '<span class="plan-name" style="flex-direction:column;align-items:flex-start">' +
-            '<select class="strength-select" onchange="App.selectStrengthPattern(\'' + day.date + '\',this.value)">' + options + '</select>' +
+            '<select class="strength-select" style="' + selectStyle + '" onchange="App.selectStrengthPattern(\'' + day.date + '\',this.value)">' + options + '</select>' +
             runContext +
           '</span>' +
           '<span class="plan-check' + (isDone ? ' done' : '') + '"' +
