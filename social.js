@@ -251,7 +251,7 @@ const Social = {
     // Start from today or yesterday
     if (!completed[toISO(d)] && !restDates.has(toISO(d))) d.setDate(d.getDate() - 1);
     while (completed[toISO(d)] || restDates.has(toISO(d))) {
-      if (completed[toISO(d)]) streak++;
+      if (completed[toISO(d)] && !restDates.has(toISO(d))) streak++;
       // Rest days are skipped (don't break streak, don't count)
       d.setDate(d.getDate() - 1);
     }
