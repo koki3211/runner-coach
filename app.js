@@ -541,6 +541,8 @@ const App = {
             actualDist: cloudData.actualDist || {},
             strengthPlan: cloudData.strengthPlan || {},
             strengthPatterns: cloudData.strengthPatterns || [],
+            strengthGoals: cloudData.strengthGoals || [],
+            strengthRecords: cloudData.strengthRecords || {},
             paces: this._recalcPaces(cloudData.settings.targetTime, cloudData.settings.raceType)
           };
           saveState(this.state);
@@ -722,6 +724,9 @@ const App = {
 
     // Day schedule selector
     this.renderDaySchedule(s.daySchedule || DEFAULT_DAY_SCHEDULE);
+
+    // Strength goals
+    this.renderStrengthGoals();
   },
 
   renderDaySchedule(schedule) {
@@ -1046,11 +1051,16 @@ const App = {
     const pat = patterns.find(p => p.id === sDay.patternId);
     const name = pat ? pat.name : '筋トレ';
     const isDone = sDay.done;
+    const exercises = pat && pat.exercises ? pat.exercises : [];
+    const exerciseLabel = exercises.length > 0
+      ? '<div style="font-size:var(--font-size-caption2);opacity:0.7;margin-top:2px">' + exercises.map(e => e.name).join(' / ') + '</div>'
+      : '';
 
     return '<div class="today-strength-hero">' +
       '<div class="strength-hero-info">' +
         '<div class="strength-hero-type">筋トレ</div>' +
         '<div class="strength-hero-name">💪 ' + escapeHtml(name) + '</div>' +
+        exerciseLabel +
       '</div>' +
       '<button class="strength-hero-btn' + (isDone ? ' done' : '') + '" onclick="App.toggleStrengthDone(\'' + todayStr + '\')">' +
         (isDone ? '✓ 完了済み' : 'トレーニング完了') +
@@ -1167,6 +1177,10 @@ const App = {
   getStrengthPatterns() {
     if (!this.state) return [];
     if (!this.state.strengthPatterns) this.state.strengthPatterns = [];
+    // Auto-migrate old patterns without exercises
+    for (const p of this.state.strengthPatterns) {
+      if (!p.exercises) p.exercises = [];
+    }
     return this.state.strengthPatterns;
   },
 
@@ -1175,6 +1189,63 @@ const App = {
     this.state.strengthPatterns = patterns;
     saveState(this.state);
     if (typeof Social !== 'undefined' && Social.enabled) Social.syncToCloud(this.state);
+  },
+
+  // --- Strength Goals ---
+  getStrengthGoals() {
+    if (!this.state) return [];
+    if (!this.state.strengthGoals) this.state.strengthGoals = [];
+    return this.state.strengthGoals;
+  },
+
+  saveStrengthGoals(goals) {
+    if (!this.state) return;
+    this.state.strengthGoals = goals;
+    saveState(this.state);
+    if (typeof Social !== 'undefined' && Social.enabled) Social.syncToCloud(this.state);
+  },
+
+  renderStrengthGoals() {
+    const container = document.getElementById('strength-goals-area');
+    if (!container) return;
+    const goals = this.getStrengthGoals();
+    let html = '';
+    for (let i = 0; i < goals.length; i++) {
+      html += '<div class="strength-goal-row">' +
+        '<input type="text" class="form-input strength-goal-input" value="' + escapeHtml(goals[i].text) + '" ' +
+          'data-goal-idx="' + i + '" placeholder="例: ベンチプレス 100kg" ' +
+          'onchange="App.updateStrengthGoal(' + i + ',this.value)">' +
+        '<button class="strength-remove-btn" onclick="App.removeStrengthGoal(' + i + ')">✕</button>' +
+      '</div>';
+    }
+    html += '<button class="strength-add-btn" style="width:100%;padding:var(--space-sm) 0" onclick="App.addStrengthGoal()">+ 目標を追加</button>';
+    container.innerHTML = html;
+  },
+
+  addStrengthGoal() {
+    const goals = this.getStrengthGoals();
+    goals.push({ text: '' });
+    this.saveStrengthGoals(goals);
+    this.renderStrengthGoals();
+    // Focus the new input
+    const inputs = document.querySelectorAll('.strength-goal-input');
+    if (inputs.length) inputs[inputs.length - 1].focus();
+  },
+
+  removeStrengthGoal(idx) {
+    const goals = this.getStrengthGoals();
+    goals.splice(idx, 1);
+    this.saveStrengthGoals(goals);
+    this.renderStrengthGoals();
+    this.renderPlan();
+  },
+
+  updateStrengthGoal(idx, value) {
+    const goals = this.getStrengthGoals();
+    if (goals[idx]) {
+      goals[idx].text = value.trim();
+      this.saveStrengthGoals(goals);
+    }
   },
 
   getStrengthPlan() {
@@ -1203,26 +1274,202 @@ const App = {
   toggleStrengthDone(dateStr) {
     const day = this.getStrengthDay(dateStr);
     if (!day) return;
-    day.done = !day.done;
-    this.setStrengthDay(dateStr, day);
     if (day.done) {
-      this.showStrengthCompletion(dateStr);
+      // Undo: mark as not done
+      day.done = false;
+      this.setStrengthDay(dateStr, day);
+      this.renderPlan();
+      this.renderToday();
+    } else {
+      // Open recording modal
+      this.openStrengthRecordModal(dateStr);
     }
+  },
+
+  // --- Strength Records ---
+  getStrengthRecords() {
+    if (!this.state) return {};
+    if (!this.state.strengthRecords) this.state.strengthRecords = {};
+    return this.state.strengthRecords;
+  },
+
+  saveStrengthRecord(dateStr, record) {
+    if (!this.state) return;
+    if (!this.state.strengthRecords) this.state.strengthRecords = {};
+    this.state.strengthRecords[dateStr] = record;
+    saveState(this.state);
+    if (typeof Social !== 'undefined' && Social.enabled) Social.syncToCloud(this.state);
+  },
+
+  _getLastRecord(patternId) {
+    const records = this.getStrengthRecords();
+    const dates = Object.keys(records).filter(d => records[d].patternId === patternId).sort().reverse();
+    return dates.length > 0 ? records[dates[0]] : null;
+  },
+
+  openStrengthRecordModal(dateStr) {
+    const day = this.getStrengthDay(dateStr);
+    if (!day) return;
+    const patterns = this.getStrengthPatterns();
+    const pat = patterns.find(p => p.id === day.patternId);
+    if (!pat) return;
+    const exercises = pat.exercises || [];
+    const lastRecord = this._getLastRecord(day.patternId);
+
+    this._strengthRecordDate = dateStr;
+    this._strengthRecordPatternId = day.patternId;
+
+    let html = '<div class="strength-record-sheet">' +
+      '<div class="strength-record-title">💪 ' + escapeHtml(pat.name) + '</div>';
+
+    if (exercises.length === 0) {
+      html += '<div style="text-align:center;color:var(--color-label-secondary);padding:var(--space-lg) 0">' +
+        '種目が未設定です<br><span style="font-size:var(--font-size-caption1)">パターン編集から種目を追加してください</span></div>';
+    }
+
+    for (let i = 0; i < exercises.length; i++) {
+      const ex = exercises[i];
+      // Get last record defaults
+      const lastSets = lastRecord && lastRecord.exercises && lastRecord.exercises[i] ? lastRecord.exercises[i] : [];
+      const defaultSets = lastSets.length > 0 ? lastSets : [{ weight: '', reps: '' }, { weight: '', reps: '' }, { weight: '', reps: '' }];
+
+      // Build last record display
+      let lastLabel = '';
+      if (lastSets.length > 0) {
+        lastLabel = '<div class="strength-record-last">前回: ' +
+          lastSets.map((s, si) => (si + 1) + ') ' + s.weight + 'kg×' + s.reps + '回').join('  ') + '</div>';
+      }
+
+      html += '<div class="strength-record-exercise" data-exercise-idx="' + i + '">' +
+        '<div class="strength-record-exercise-name">' + escapeHtml(ex.name) + '</div>' +
+        lastLabel +
+        '<div class="strength-set-header"><span></span><span>重さ(kg)</span><span>回数</span><span></span></div>' +
+        '<div class="strength-sets" id="strength-sets-' + i + '">';
+
+      for (let s = 0; s < defaultSets.length; s++) {
+        html += this._buildSetRowHTML(i, s, defaultSets[s].weight, defaultSets[s].reps);
+      }
+
+      html += '</div>' +
+        '<button class="strength-add-set-btn" onclick="App.addRecordSet(' + i + ')">+ セット追加</button>' +
+      '</div>';
+    }
+
+    html += '<div class="strength-record-actions">' +
+      '<button class="strength-record-skip" onclick="App.skipStrengthRecord()">スキップ</button>' +
+      '<button class="strength-record-save" onclick="App.saveStrengthRecordModal()">記録して完了</button>' +
+    '</div></div>';
+
+    const overlay = document.getElementById('strength-record-overlay');
+    overlay.innerHTML = html;
+    overlay.classList.add('show');
+  },
+
+  _buildSetRowHTML(exerciseIdx, setIdx, weight, reps) {
+    const w = weight !== undefined && weight !== '' ? weight : '';
+    const r = reps !== undefined && reps !== '' ? reps : '';
+    return '<div class="strength-set-row">' +
+      '<span class="strength-set-num">' + (setIdx + 1) + '</span>' +
+      '<input type="number" class="strength-set-input" data-ex="' + exerciseIdx + '" data-field="weight" value="' + w + '" placeholder="0" min="0" step="0.5" inputmode="decimal">' +
+      '<input type="number" class="strength-set-input" data-ex="' + exerciseIdx + '" data-field="reps" value="' + r + '" placeholder="0" min="0" inputmode="numeric">' +
+      '<button class="strength-remove-btn" onclick="this.parentElement.remove()" style="width:20px;height:20px;font-size:10px">✕</button>' +
+    '</div>';
+  },
+
+  addRecordSet(exerciseIdx) {
+    const container = document.getElementById('strength-sets-' + exerciseIdx);
+    if (!container) return;
+    const setIdx = container.querySelectorAll('.strength-set-row').length;
+    const row = document.createElement('div');
+    row.className = 'strength-set-row';
+    row.innerHTML = '<span class="strength-set-num">' + (setIdx + 1) + '</span>' +
+      '<input type="number" class="strength-set-input" data-ex="' + exerciseIdx + '" data-field="weight" value="" placeholder="0" min="0" step="0.5" inputmode="decimal">' +
+      '<input type="number" class="strength-set-input" data-ex="' + exerciseIdx + '" data-field="reps" value="" placeholder="0" min="0" inputmode="numeric">' +
+      '<button class="strength-remove-btn" onclick="this.parentElement.remove()" style="width:20px;height:20px;font-size:10px">✕</button>';
+    container.appendChild(row);
+  },
+
+  skipStrengthRecord() {
+    const dateStr = this._strengthRecordDate;
+    if (!dateStr) return;
+    // Mark done without recording
+    const day = this.getStrengthDay(dateStr);
+    if (day) {
+      day.done = true;
+      this.setStrengthDay(dateStr, day);
+    }
+    document.getElementById('strength-record-overlay').classList.remove('show');
+    this._showStrengthCompletionCelebration(dateStr);
     this.renderPlan();
     this.renderToday();
   },
 
-  showStrengthCompletion(dateStr) {
+  saveStrengthRecordModal() {
+    const dateStr = this._strengthRecordDate;
+    const patternId = this._strengthRecordPatternId;
+    if (!dateStr || !patternId) return;
+
+    const exerciseContainers = document.querySelectorAll('.strength-record-exercise');
+    const exercisesData = [];
+    exerciseContainers.forEach(container => {
+      const rows = container.querySelectorAll('.strength-set-row');
+      const sets = [];
+      rows.forEach(row => {
+        const weightInput = row.querySelector('[data-field="weight"]');
+        const repsInput = row.querySelector('[data-field="reps"]');
+        const weight = parseFloat(weightInput.value) || 0;
+        const reps = parseInt(repsInput.value) || 0;
+        if (weight > 0 || reps > 0) {
+          sets.push({ weight: weight, reps: reps });
+        }
+      });
+      exercisesData.push(sets);
+    });
+
+    this.saveStrengthRecord(dateStr, { patternId: patternId, exercises: exercisesData });
+
+    // Mark done
+    const day = this.getStrengthDay(dateStr);
+    if (day) {
+      day.done = true;
+      this.setStrengthDay(dateStr, day);
+    }
+
+    document.getElementById('strength-record-overlay').classList.remove('show');
+    this._showStrengthCompletionCelebration(dateStr);
+    this.renderPlan();
+    this.renderToday();
+  },
+
+  _showStrengthCompletionCelebration(dateStr) {
     const day = this.getStrengthDay(dateStr);
     if (!day) return;
     const patterns = this.getStrengthPatterns();
     const pat = patterns.find(p => p.id === day.patternId);
     const name = pat ? pat.name : '筋トレ';
+
+    // Build stats from record
+    const records = this.getStrengthRecords();
+    const record = records[dateStr];
+    let statsHTML = '';
+    if (record && record.exercises && pat && pat.exercises) {
+      for (let i = 0; i < pat.exercises.length; i++) {
+        const sets = record.exercises[i];
+        if (sets && sets.length > 0) {
+          const totalVol = sets.reduce((sum, s) => sum + (s.weight * s.reps), 0);
+          statsHTML += '<div class="completion-stat"><div class="stat-value">' + Math.round(totalVol) + 'kg</div>' +
+            '<div class="stat-label">' + escapeHtml(pat.exercises[i].name) + '</div></div>';
+        }
+      }
+    }
+    if (!statsHTML) {
+      statsHTML = '<div class="completion-stat"><div class="stat-value">💪</div><div class="stat-label">' + escapeHtml(name) + '</div></div>';
+    }
+
     const overlay = document.getElementById('completion-overlay');
     document.getElementById('completion-title').textContent = 'ナイストレーニング!';
     document.getElementById('completion-subtitle').textContent = name + ' 完了';
-    document.getElementById('completion-stats').innerHTML =
-      '<div class="completion-stat"><div class="stat-value">💪</div><div class="stat-label">' + escapeHtml(name) + '</div></div>';
+    document.getElementById('completion-stats').innerHTML = statsHTML;
     overlay.classList.add('show');
     launchConfetti();
     if (navigator.vibrate) navigator.vibrate([50, 30, 100]);
@@ -1244,10 +1491,15 @@ const App = {
     const patterns = this.getStrengthPatterns();
     let listHTML = '';
     for (let i = 0; i < patterns.length; i++) {
-      listHTML += '<div class="strength-pattern-row">' +
-        '<input type="text" class="form-input strength-pattern-input" value="' + escapeHtml(patterns[i].name) + '" ' +
-          'data-pattern-idx="' + i + '" placeholder="パターン名">' +
-        '<button class="strength-remove-btn" onclick="App.removeStrengthPattern(' + i + ')">✕</button>' +
+      const exercisesHTML = this._buildExerciseListHTML(i, patterns[i].exercises || []);
+      listHTML += '<div class="strength-pattern-block" data-pattern-idx="' + i + '">' +
+        '<div class="strength-pattern-row">' +
+          '<input type="text" class="form-input strength-pattern-input" value="' + escapeHtml(patterns[i].name) + '" ' +
+            'data-pattern-idx="' + i + '" placeholder="パターン名">' +
+          '<button class="strength-remove-btn" onclick="App.removeStrengthPattern(' + i + ')">✕</button>' +
+        '</div>' +
+        '<div class="strength-exercises" id="strength-exercises-' + i + '">' + exercisesHTML + '</div>' +
+        '<button class="strength-add-exercise-btn" onclick="App.addExerciseToPattern(' + i + ')">+ 種目を追加</button>' +
       '</div>';
     }
     const overlay = document.getElementById('edit-overlay');
@@ -1266,33 +1518,75 @@ const App = {
     overlay.classList.add('show');
   },
 
-  addStrengthPattern() {
-    const list = document.getElementById('strength-pattern-list');
-    const idx = list.querySelectorAll('.strength-pattern-row').length;
+  _buildExerciseListHTML(patIdx, exercises) {
+    return exercises.map((ex, j) =>
+      '<div class="strength-exercise-row">' +
+        '<span class="strength-exercise-num">' + (j + 1) + '</span>' +
+        '<input type="text" class="form-input strength-exercise-input" value="' + escapeHtml(ex.name) + '" ' +
+          'data-pattern-idx="' + patIdx + '" data-exercise-idx="' + j + '" placeholder="種目名">' +
+        '<button class="strength-remove-btn" onclick="this.parentElement.remove()">✕</button>' +
+      '</div>'
+    ).join('');
+  },
+
+  addExerciseToPattern(patIdx) {
+    const container = document.getElementById('strength-exercises-' + patIdx);
+    if (!container) return;
+    const idx = container.querySelectorAll('.strength-exercise-row').length;
     const row = document.createElement('div');
-    row.className = 'strength-pattern-row';
-    row.innerHTML = '<input type="text" class="form-input strength-pattern-input" value="" ' +
-      'data-pattern-idx="' + idx + '" placeholder="パターン名">' +
+    row.className = 'strength-exercise-row';
+    row.innerHTML = '<span class="strength-exercise-num">' + (idx + 1) + '</span>' +
+      '<input type="text" class="form-input strength-exercise-input" value="" ' +
+        'data-pattern-idx="' + patIdx + '" data-exercise-idx="' + idx + '" placeholder="種目名">' +
       '<button class="strength-remove-btn" onclick="this.parentElement.remove()">✕</button>';
-    list.appendChild(row);
+    container.appendChild(row);
     row.querySelector('input').focus();
   },
 
+  addStrengthPattern() {
+    const list = document.getElementById('strength-pattern-list');
+    const idx = list.querySelectorAll('.strength-pattern-block').length;
+    const block = document.createElement('div');
+    block.className = 'strength-pattern-block';
+    block.dataset.patternIdx = idx;
+    block.innerHTML = '<div class="strength-pattern-row">' +
+      '<input type="text" class="form-input strength-pattern-input" value="" ' +
+        'data-pattern-idx="' + idx + '" placeholder="パターン名">' +
+      '<button class="strength-remove-btn" onclick="this.closest(\'.strength-pattern-block\').remove()">✕</button>' +
+    '</div>' +
+    '<div class="strength-exercises" id="strength-exercises-' + idx + '"></div>' +
+    '<button class="strength-add-exercise-btn" onclick="App.addExerciseToPattern(' + idx + ')">+ 種目を追加</button>';
+    list.appendChild(block);
+    block.querySelector('input').focus();
+  },
+
   removeStrengthPattern(idx) {
-    const rows = document.querySelectorAll('.strength-pattern-row');
-    if (rows[idx]) rows[idx].remove();
+    const blocks = document.querySelectorAll('.strength-pattern-block');
+    if (blocks[idx]) blocks[idx].remove();
   },
 
   saveStrengthPatternEditor() {
-    const inputs = document.querySelectorAll('.strength-pattern-input');
+    const blocks = document.querySelectorAll('.strength-pattern-block');
     const oldPatterns = this.getStrengthPatterns();
     const newPatterns = [];
-    inputs.forEach(input => {
-      const name = input.value.trim();
+    blocks.forEach(block => {
+      const nameInput = block.querySelector('.strength-pattern-input');
+      const name = nameInput ? nameInput.value.trim() : '';
       if (!name) return;
-      const oldIdx = parseInt(input.dataset.patternIdx);
+      const oldIdx = parseInt(nameInput.dataset.patternIdx);
       const existing = oldPatterns[oldIdx];
-      newPatterns.push({ id: existing ? existing.id : 'sp_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6), name: name });
+      // Gather exercises
+      const exerciseInputs = block.querySelectorAll('.strength-exercise-input');
+      const exercises = [];
+      exerciseInputs.forEach(input => {
+        const exName = input.value.trim();
+        if (exName) exercises.push({ name: exName });
+      });
+      newPatterns.push({
+        id: existing ? existing.id : 'sp_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        name: name,
+        exercises: exercises
+      });
     });
     this.saveStrengthPatterns(newPatterns);
     this.closeStrengthPatternEditor();
@@ -1308,8 +1602,25 @@ const App = {
     if (!this.state || !this.state.plan) return '';
     const patterns = this.getStrengthPatterns();
 
+    // Strength goals display
+    const goals = this.getStrengthGoals().filter(g => g.text);
+    let html = '';
+    if (goals.length > 0) {
+      html += '<div class="strength-goals-display">' +
+        goals.map(g => '<span class="strength-goal-chip">' + escapeHtml(g.text) + '</span>').join('') +
+      '</div>';
+    }
+
+    // Build run plan lookup for context display
+    const runDayMap = {};
+    for (const week of this.state.plan) {
+      for (const day of week.days) {
+        runDayMap[day.date] = day;
+      }
+    }
+
     // Pattern editor button
-    let html = '<div class="mx" style="padding:var(--space-md) 0">' +
+    html += '<div class="mx" style="padding:var(--space-md) 0">' +
       '<button class="small-btn primary" onclick="App.openStrengthPatternEditor()">パターンを編集</button>' +
       (patterns.length === 0 ? '<span style="margin-left:var(--space-sm);font-size:var(--font-size-caption1);color:var(--color-label-secondary)">まずパターンを作成してください</span>' : '') +
     '</div>';
@@ -1324,7 +1635,6 @@ const App = {
         const sDay = this.getStrengthDay(day.date);
         const selectedId = sDay ? sDay.patternId : '';
         const isDone = sDay ? sDay.done : false;
-        const patName = selectedId ? (patterns.find(p => p.id === selectedId) || {}).name || '' : '';
 
         // Build select options
         let options = '<option value="">— レスト —</option>';
@@ -1332,11 +1642,34 @@ const App = {
           options += '<option value="' + p.id + '"' + (p.id === selectedId ? ' selected' : '') + '>' + escapeHtml(p.name) + '</option>';
         }
 
+        // Run menu context: yesterday, today, tomorrow
+        let runContext = '';
+        if (selectedId) {
+          const contextDays = [-1, 0, 1];
+          const labels = [];
+          for (const offset of contextDays) {
+            const contextDate = toISO(addDays(d, offset));
+            const runDay = runDayMap[contextDate];
+            if (runDay && runDay.type !== 'rest') {
+              const prefix = offset === -1 ? '前' : offset === 0 ? '当' : '翌';
+              const typeLabel = TYPE_LABELS[runDay.type] || runDay.type;
+              const dist = formatDist(runDay.dist, runDay.type);
+              labels.push(prefix + ':' + typeLabel + ' ' + dist + 'km');
+            }
+          }
+          if (labels.length > 0) {
+            runContext = '<div class="strength-run-context">' + labels.join(' / ') + '</div>';
+          }
+        }
+
         const sTodayClass = day.date === toISO(today()) ? ' plan-item-today' : '';
         html += '<li class="plan-item' + sTodayClass + '" data-date="' + day.date + '">' +
           '<span class="plan-day">' + day.dayJa + '</span>' +
           '<span class="plan-date">' + dateLabel + '</span>' +
-          '<span class="plan-name"><select class="strength-select" onchange="App.selectStrengthPattern(\'' + day.date + '\',this.value)">' + options + '</select></span>' +
+          '<span class="plan-name" style="flex-direction:column;align-items:flex-start">' +
+            '<select class="strength-select" onchange="App.selectStrengthPattern(\'' + day.date + '\',this.value)">' + options + '</select>' +
+            runContext +
+          '</span>' +
           '<span class="plan-check' + (isDone ? ' done' : '') + '"' +
             (selectedId ? ' onclick="event.stopPropagation();App.toggleStrengthDone(\'' + day.date + '\')"' : '') +
             ' style="' + (selectedId ? '' : 'visibility:hidden') + '"></span>' +

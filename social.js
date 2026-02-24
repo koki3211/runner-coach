@@ -109,6 +109,8 @@ const Social = {
       actualDuration: state.actualDuration || {},
       strengthPlan: state.strengthPlan || {},
       strengthPatterns: state.strengthPatterns || [],
+      strengthGoals: state.strengthGoals || [],
+      strengthRecords: state.strengthRecords || {},
       plan: state.plan || [],
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
