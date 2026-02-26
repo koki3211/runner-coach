@@ -1193,6 +1193,50 @@
       content: '▸'; color: #AF52DE; font-size: var(--font-size-body);
     }
 
+    /* Strength Quick-Add Card (Today tab) */
+    .strength-quick-add {
+      margin: var(--space-sm) var(--space-base);
+      padding: var(--space-base) var(--space-lg);
+      border-radius: var(--radius-lg);
+      background: var(--color-bg-primary);
+      border: 1.5px dashed var(--color-separator-opaque);
+    }
+    .strength-quick-add-label {
+      font-size: var(--font-size-subhead); font-weight: var(--font-weight-semibold);
+      color: var(--color-label-secondary); margin-bottom: var(--space-sm);
+    }
+    .strength-quick-add-options {
+      display: flex; flex-wrap: wrap; gap: var(--space-xs);
+    }
+    .strength-quick-add-option {
+      padding: var(--space-xs) var(--space-md);
+      background: var(--color-fill-quaternary);
+      border: none; border-radius: var(--radius-md);
+      font-family: var(--font-family-body);
+      font-size: var(--font-size-callout); font-weight: var(--font-weight-semibold);
+      color: var(--color-label-primary); cursor: pointer;
+      transition: transform var(--duration-fast) var(--easing-spring);
+    }
+    .strength-quick-add-option:active { transform: scale(0.95); }
+
+    /* Strength Empty State */
+    .strength-empty-state {
+      text-align: center;
+      padding: var(--space-2xl) var(--space-xl);
+    }
+    .strength-empty-icon {
+      font-size: 48px; margin-bottom: var(--space-md);
+    }
+    .strength-empty-title {
+      font-family: var(--font-family-display);
+      font-size: var(--font-size-title3); font-weight: var(--font-weight-bold);
+      color: var(--color-label-primary); margin-bottom: var(--space-sm);
+    }
+    .strength-empty-desc {
+      font-size: var(--font-size-subhead); color: var(--color-label-secondary);
+      line-height: var(--line-height-relaxed); margin-bottom: var(--space-xl);
+    }
+
     /* Strength Run Context */
     .strength-run-context {
       font-size: var(--font-size-caption2); color: var(--color-label-tertiary);

@@ -1058,7 +1058,19 @@ const App = {
   buildTodayStrengthHTML() {
     const todayStr = toISO(today());
     const sDay = this.getStrengthDay(todayStr);
-    if (!sDay) return '';
+    if (!sDay) {
+      // No strength plan for today — show quick-add card if patterns exist
+      const patterns = this.getStrengthPatterns();
+      if (patterns.length === 0) return '';
+      const options = patterns.map(p =>
+        '<button class="strength-quick-add-option" onclick="App.quickAddStrength(\'' + p.id + '\')" style="border-left:3px solid ' +
+        STRENGTH_COLORS[patterns.indexOf(p) % STRENGTH_COLORS.length] + '">' + escapeHtml(p.name) + '</button>'
+      ).join('');
+      return '<div class="strength-quick-add">' +
+        '<div class="strength-quick-add-label">+ 今日の筋トレを追加</div>' +
+        '<div class="strength-quick-add-options">' + options + '</div>' +
+      '</div>';
+    }
 
     const patterns = this.getStrengthPatterns();
     const pat = patterns.find(p => p.id === sDay.patternId);
@@ -1364,7 +1376,7 @@ const App = {
 
     if (exercises.length === 0) {
       html += '<div style="text-align:center;color:var(--color-label-secondary);padding:var(--space-lg) 0">' +
-        '種目が未設定です<br><span style="font-size:var(--font-size-caption1)">パターン編集から種目を追加してください</span></div>';
+        '種目が未設定です<br><span style="font-size:var(--font-size-caption1)">メニュー編集から種目を追加してください</span></div>';
     }
 
     for (let i = 0; i < exercises.length; i++) {
@@ -1521,6 +1533,13 @@ const App = {
     if (navigator.vibrate) navigator.vibrate([50, 30, 100]);
   },
 
+  quickAddStrength(patternId) {
+    const todayStr = toISO(today());
+    this.setStrengthDay(todayStr, { patternId: patternId, done: false });
+    this.renderToday();
+    this.renderPlan();
+  },
+
   selectStrengthPattern(dateStr, patternId) {
     if (!patternId) {
       // Clear the day
@@ -1541,7 +1560,7 @@ const App = {
       listHTML += '<div class="strength-pattern-block" data-pattern-idx="' + i + '">' +
         '<div class="strength-pattern-row">' +
           '<input type="text" class="form-input strength-pattern-input" value="' + escapeHtml(patterns[i].name) + '" ' +
-            'data-pattern-idx="' + i + '" placeholder="パターン名">' +
+            'data-pattern-idx="' + i + '" placeholder="メニュー名">' +
           '<button class="strength-remove-btn" onclick="App.removeStrengthPattern(' + i + ')">✕</button>' +
         '</div>' +
         '<div class="strength-exercises" id="strength-exercises-' + i + '">' + exercisesHTML + '</div>' +
@@ -1553,9 +1572,9 @@ const App = {
       '<div class="edit-backdrop" onclick="App.closeStrengthPatternEditor()"></div>' +
       '<div class="edit-sheet">' +
         '<div class="edit-sheet-handle"></div>' +
-        '<div class="edit-sheet-title">筋トレパターンを編集</div>' +
+        '<div class="edit-sheet-title">筋トレメニューを編集</div>' +
         '<div id="strength-pattern-list">' + listHTML + '</div>' +
-        '<button class="strength-add-btn" style="width:100%;padding:var(--space-sm) 0;margin-top:var(--space-sm)" onclick="App.addStrengthPattern()">+ パターンを追加</button>' +
+        '<button class="strength-add-btn" style="width:100%;padding:var(--space-sm) 0;margin-top:var(--space-sm)" onclick="App.addStrengthPattern()">+ メニューを追加</button>' +
         '<div class="edit-actions">' +
           '<button class="edit-cancel-btn" onclick="App.closeStrengthPatternEditor()">キャンセル</button>' +
           '<button class="cta-btn edit-save-btn" onclick="App.saveStrengthPatternEditor()">保存</button>' +
@@ -1597,7 +1616,7 @@ const App = {
     block.dataset.patternIdx = idx;
     block.innerHTML = '<div class="strength-pattern-row">' +
       '<input type="text" class="form-input strength-pattern-input" value="" ' +
-        'data-pattern-idx="' + idx + '" placeholder="パターン名">' +
+        'data-pattern-idx="' + idx + '" placeholder="メニュー名">' +
       '<button class="strength-remove-btn" onclick="this.closest(\'.strength-pattern-block\').remove()">✕</button>' +
     '</div>' +
     '<div class="strength-exercises" id="strength-exercises-' + idx + '"></div>' +
@@ -1671,10 +1690,20 @@ const App = {
       }
     }
 
+    // Empty state: no patterns yet → show welcome card
+    if (patterns.length === 0) {
+      html += '<div class="strength-empty-state">' +
+        '<div class="strength-empty-icon">💪</div>' +
+        '<div class="strength-empty-title">筋トレメニューを作ろう</div>' +
+        '<div class="strength-empty-desc">「背中の日」「脚の日」など<br>自分だけのメニューを作成できます</div>' +
+        '<button class="cta-btn" onclick="App.openStrengthPatternEditor()">+ メニューを作成</button>' +
+      '</div>';
+      return html;
+    }
+
     // Pattern editor button
     html += '<div class="mx" style="padding:var(--space-md) 0">' +
-      '<button class="small-btn primary" onclick="App.openStrengthPatternEditor()">パターンを編集</button>' +
-      (patterns.length === 0 ? '<span style="margin-left:var(--space-sm);font-size:var(--font-size-caption1);color:var(--color-label-secondary)">まずパターンを作成してください</span>' : '') +
+      '<button class="small-btn primary" onclick="App.openStrengthPatternEditor()">メニューを編集</button>' +
     '</div>';
 
     for (const week of this.state.plan) {
