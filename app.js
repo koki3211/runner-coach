@@ -1321,33 +1321,36 @@ const App = {
     if (!el) return;
     const template = this.getStrengthWeekTemplate();
     const patterns = this.getStrengthPatterns();
-    const patternColorMap = {};
-    patterns.forEach((p, i) => { patternColorMap[p.id] = STRENGTH_COLORS[i % STRENGTH_COLORS.length]; });
 
     el.innerHTML = DAYS_JA.map((day, i) => {
-      const selectedIds = template[i] || [];
-      let pills = '';
-      for (const p of patterns) {
-        const isSelected = selectedIds.indexOf(p.id) >= 0;
-        const color = patternColorMap[p.id] || 'var(--color-label-tertiary)';
-        if (isSelected) {
-          pills += '<span class="strength-pill selected" style="background:' + color + '" ' +
-            'onclick="App.toggleStrengthWeekTemplate(' + i + ',\'' + p.id + '\')">' +
-            escapeHtml(p.name) + '</span>';
-        } else {
-          pills += '<span class="strength-pill" style="border-color:' + color + ';color:' + color + '" ' +
-            'onclick="App.toggleStrengthWeekTemplate(' + i + ',\'' + p.id + '\')">' +
-            escapeHtml(p.name) + '</span>';
-        }
+      const ids = template[i] || [];
+      let selects = '';
+      for (let s = 0; s < 3; s++) {
+        const selectedId = ids[s] || '';
+        const options = '<option value="">─</option>' +
+          patterns.map(p =>
+            '<option value="' + p.id + '"' + (selectedId === p.id ? ' selected' : '') + '>' + escapeHtml(p.name) + '</option>'
+          ).join('');
+        selects += '<select class="day-schedule-select" id="str-sched-' + i + '-' + s + '" ' +
+          'onchange="App.onStrengthTemplateChange(' + i + ',' + s + ',this.value)">' + options + '</select>';
       }
-      if (patterns.length === 0) {
-        pills = '<span style="font-size:var(--font-size-caption1);color:var(--color-label-tertiary)">メニューを先に作成してください</span>';
-      }
-      return '<div class="strength-template-row">' +
-        '<span class="strength-template-label">' + day + '</span>' +
-        '<div class="strength-template-pills">' + pills + '</div>' +
+      return '<div class="day-schedule-row">' +
+        '<span class="day-schedule-label">' + day + '</span>' +
+        '<div class="strength-template-selects">' + selects + '</div>' +
       '</div>';
     }).join('');
+  },
+
+  onStrengthTemplateChange(dayIdx, slotIdx, value) {
+    const template = this.getStrengthWeekTemplate();
+    let ids = (template[dayIdx] || []).slice();
+    // Ensure array has enough slots
+    while (ids.length <= slotIdx) ids.push('');
+    ids[slotIdx] = value;
+    // Remove trailing empties
+    while (ids.length > 0 && ids[ids.length - 1] === '') ids.pop();
+    template[dayIdx] = ids;
+    this.saveStrengthWeekTemplate(template);
   },
 
   toggleStrengthWeekTemplate(dayIdx, patternId) {
@@ -1379,7 +1382,7 @@ const App = {
         const d = fromISO(day.date);
         // getDay(): 0=Sun, convert to 0=Mon
         const dayIdx = (d.getDay() + 6) % 7;
-        const ids = template[dayIdx] || [];
+        const ids = (template[dayIdx] || []).filter(id => id !== '');
         if (ids.length > 0) {
           const existing = this.getStrengthDay(day.date);
           // Preserve done status if same patterns
@@ -1974,23 +1977,17 @@ const App = {
         const selectedIds = sDay ? (sDay.patternIds || []) : [];
         const isDone = sDay ? sDay.done : false;
 
-        // Build pills for selected patterns + add button
-        let pillsHTML = '';
-        for (const pid of selectedIds) {
-          const pat = patterns.find(p => p.id === pid);
-          if (!pat) continue;
-          const color = patternColorMap[pid] || 'var(--color-label-secondary)';
-          pillsHTML += '<span class="strength-pill selected" style="background:' + color + '" ' +
-            'onclick="event.stopPropagation();App.toggleStrengthPatternForDay(\'' + day.date + '\',\'' + pid + '\')">' +
-            escapeHtml(pat.name) + '</span>';
-        }
-        // Unselected patterns as dimmed pills
-        for (const p of patterns) {
-          if (selectedIds.indexOf(p.id) >= 0) continue;
-          const color = patternColorMap[p.id] || 'var(--color-label-tertiary)';
-          pillsHTML += '<span class="strength-pill" style="border-color:' + color + ';color:' + color + '" ' +
-            'onclick="event.stopPropagation();App.toggleStrengthPatternForDay(\'' + day.date + '\',\'' + p.id + '\')">' +
-            escapeHtml(p.name) + '</span>';
+        // Build display label — assigned pattern names or "レスト"
+        let menuLabel = '';
+        if (selectedIds.length > 0) {
+          const names = [];
+          for (const pid of selectedIds) {
+            const pat = patterns.find(p => p.id === pid);
+            if (pat) names.push(escapeHtml(pat.name));
+          }
+          menuLabel = names.join(' / ');
+        } else {
+          menuLabel = '<span style="color:var(--color-label-tertiary)">レスト</span>';
         }
 
         // Run menu context
@@ -2021,7 +2018,7 @@ const App = {
           '<span class="plan-day">' + day.dayJa + '</span>' +
           '<span class="plan-date">' + dateLabel + '</span>' +
           '<span class="plan-name" style="flex-direction:column;align-items:flex-start">' +
-            '<div class="strength-pills-wrap">' + pillsHTML + '</div>' +
+            '<div>' + menuLabel + '</div>' +
             runContext +
           '</span>' +
           '<span class="plan-check' + (isDone ? ' done' : '') + '"' +
