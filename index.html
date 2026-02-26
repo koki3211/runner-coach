@@ -1460,6 +1460,21 @@
     .day-schedule-dot {
       width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
     }
+    .strength-week-template { margin: 0 var(--space-base); }
+    .strength-template-row {
+      display: flex; align-items: flex-start; gap: var(--space-sm);
+      padding: var(--space-sm) 0;
+      border-bottom: 0.5px solid var(--color-separator);
+    }
+    .strength-template-row:last-child { border-bottom: none; }
+    .strength-template-label {
+      width: 28px; font-size: var(--font-size-subhead);
+      font-weight: var(--font-weight-semibold); flex-shrink: 0;
+      padding-top: 4px;
+    }
+    .strength-template-pills {
+      flex: 1; display: flex; flex-wrap: wrap; gap: 4px;
+    }
     .text-secondary { color: var(--color-label-secondary); }
     .text-sm { font-size: var(--font-size-footnote); }
     .mt-sm { margin-top: var(--space-sm); }
@@ -1585,6 +1600,13 @@
     <div class="text-sm text-secondary" style="text-align:center;padding-bottom:var(--space-sm)">目標タイムからペースを自動算出します</div>
   </div>
   <div id="goal-strength-content" style="display:none">
+    <div class="section">
+      <div class="section-header">曜日別メニュー</div>
+      <div class="form-hint" style="margin-bottom:var(--space-sm)">曜日ごとに筋トレメニューを設定</div>
+      <div id="strength-week-template" class="strength-week-template"></div>
+      <button class="cta-btn" style="margin-top:var(--space-md)" onclick="App.applyStrengthTemplate()">プランに反映</button>
+      <div class="text-sm text-secondary" style="text-align:center;padding:var(--space-xs) 0 var(--space-md)">今日以降の日程に反映されます</div>
+    </div>
     <div class="section">
       <div class="section-header">筋トレの目標</div>
       <div id="strength-goals-area" class="strength-goals-section"></div>

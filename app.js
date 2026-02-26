@@ -544,6 +544,7 @@ const App = {
             strengthPatterns: cloudData.strengthPatterns || [],
             strengthGoals: cloudData.strengthGoals || [],
             strengthRecords: cloudData.strengthRecords || {},
+            strengthWeekTemplate: cloudData.strengthWeekTemplate || [[], [], [], [], [], [], []],
             paces: this._recalcPaces(cloudData.settings.targetTime, cloudData.settings.raceType)
           };
           saveState(this.state);
@@ -750,7 +751,8 @@ const App = {
     // Day schedule selector
     this.renderDaySchedule(s.daySchedule || DEFAULT_DAY_SCHEDULE);
 
-    // Strength goals
+    // Strength week template + goals
+    this.renderStrengthWeekTemplate();
     this.renderStrengthGoals();
   },
 
@@ -860,7 +862,8 @@ const App = {
       strengthPlan: this.state ? (this.state.strengthPlan || {}) : {},
       strengthPatterns: this.state ? (this.state.strengthPatterns || []) : [],
       strengthGoals: this.state ? (this.state.strengthGoals || []) : [],
-      strengthRecords: this.state ? (this.state.strengthRecords || {}) : {}
+      strengthRecords: this.state ? (this.state.strengthRecords || {}) : {},
+      strengthWeekTemplate: this.state ? (this.state.strengthWeekTemplate || [[], [], [], [], [], [], []]) : [[], [], [], [], [], [], []]
     };
     saveState(this.state);
 
@@ -1297,6 +1300,101 @@ const App = {
     }
     html += '<button class="strength-add-btn" style="width:100%;padding:var(--space-sm) 0" onclick="App.addStrengthGoal()">+ 目標を追加</button>';
     container.innerHTML = html;
+  },
+
+  // --- Strength Week Template ---
+  getStrengthWeekTemplate() {
+    if (!this.state) return [[], [], [], [], [], [], []];
+    if (!this.state.strengthWeekTemplate) this.state.strengthWeekTemplate = [[], [], [], [], [], [], []];
+    return this.state.strengthWeekTemplate;
+  },
+
+  saveStrengthWeekTemplate(template) {
+    if (!this.state) return;
+    this.state.strengthWeekTemplate = template;
+    saveState(this.state);
+    if (typeof Social !== 'undefined' && Social.enabled) Social.syncToCloud(this.state);
+  },
+
+  renderStrengthWeekTemplate() {
+    const el = document.getElementById('strength-week-template');
+    if (!el) return;
+    const template = this.getStrengthWeekTemplate();
+    const patterns = this.getStrengthPatterns();
+    const patternColorMap = {};
+    patterns.forEach((p, i) => { patternColorMap[p.id] = STRENGTH_COLORS[i % STRENGTH_COLORS.length]; });
+
+    el.innerHTML = DAYS_JA.map((day, i) => {
+      const selectedIds = template[i] || [];
+      let pills = '';
+      for (const p of patterns) {
+        const isSelected = selectedIds.indexOf(p.id) >= 0;
+        const color = patternColorMap[p.id] || 'var(--color-label-tertiary)';
+        if (isSelected) {
+          pills += '<span class="strength-pill selected" style="background:' + color + '" ' +
+            'onclick="App.toggleStrengthWeekTemplate(' + i + ',\'' + p.id + '\')">' +
+            escapeHtml(p.name) + '</span>';
+        } else {
+          pills += '<span class="strength-pill" style="border-color:' + color + ';color:' + color + '" ' +
+            'onclick="App.toggleStrengthWeekTemplate(' + i + ',\'' + p.id + '\')">' +
+            escapeHtml(p.name) + '</span>';
+        }
+      }
+      if (patterns.length === 0) {
+        pills = '<span style="font-size:var(--font-size-caption1);color:var(--color-label-tertiary)">メニューを先に作成してください</span>';
+      }
+      return '<div class="strength-template-row">' +
+        '<span class="strength-template-label">' + day + '</span>' +
+        '<div class="strength-template-pills">' + pills + '</div>' +
+      '</div>';
+    }).join('');
+  },
+
+  toggleStrengthWeekTemplate(dayIdx, patternId) {
+    const template = this.getStrengthWeekTemplate();
+    let ids = (template[dayIdx] || []).slice();
+    const idx = ids.indexOf(patternId);
+    if (idx >= 0) {
+      ids.splice(idx, 1);
+    } else {
+      ids.push(patternId);
+    }
+    template[dayIdx] = ids;
+    this.saveStrengthWeekTemplate(template);
+    this.renderStrengthWeekTemplate();
+  },
+
+  applyStrengthTemplate() {
+    if (!this.state || !this.state.plan) {
+      alert('先にランのプランを作成してください');
+      return;
+    }
+    const template = this.getStrengthWeekTemplate();
+    const todayStr = toISO(today());
+
+    for (const week of this.state.plan) {
+      for (const day of week.days) {
+        // Skip past dates — preserve existing data
+        if (day.date < todayStr) continue;
+        const d = fromISO(day.date);
+        // getDay(): 0=Sun, convert to 0=Mon
+        const dayIdx = (d.getDay() + 6) % 7;
+        const ids = template[dayIdx] || [];
+        if (ids.length > 0) {
+          const existing = this.getStrengthDay(day.date);
+          // Preserve done status if same patterns
+          const done = existing && existing.done && JSON.stringify(existing.patternIds) === JSON.stringify(ids) ? true : false;
+          this.state.strengthPlan[day.date] = { patternIds: ids.slice(), done: done };
+        } else {
+          delete this.state.strengthPlan[day.date];
+        }
+      }
+    }
+    saveState(this.state);
+    if (typeof Social !== 'undefined' && Social.enabled) Social.syncToCloud(this.state);
+    this.renderPlan();
+    this.renderToday();
+    alert('今日以降のプランに反映しました');
   },
 
   addStrengthGoal() {
