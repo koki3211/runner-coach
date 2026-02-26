@@ -804,6 +804,8 @@
       background: var(--color-bg-primary);
       border-radius: var(--radius-xl) var(--radius-xl) 0 0;
       padding: var(--space-md) var(--space-base) calc(var(--space-2xl) + var(--safe-area-bottom));
+      max-height: calc(90vh - var(--safe-area-top));
+      overflow-y: auto; -webkit-overflow-scrolling: touch;
       animation: slideSheetUp var(--duration-normal) var(--easing-spring);
     }
     @keyframes slideSheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
@@ -1599,6 +1601,12 @@
       <div id="strength-week-template" class="strength-week-template"></div>
       <button class="cta-btn" style="margin-top:var(--space-md)" onclick="App.applyStrengthTemplate()">プランに反映</button>
       <div class="text-sm text-secondary" style="text-align:center;padding:var(--space-xs) 0 var(--space-md)">今日以降の日程に反映されます</div>
+    </div>
+    <div class="section">
+      <div class="section-header">メニュー管理</div>
+      <div style="padding:0 var(--space-base)">
+        <button class="small-btn primary" style="width:100%" onclick="App.openStrengthPatternEditor()">メニューを編集</button>
+      </div>
     </div>
     <div class="section">
       <div class="section-header">筋トレの目標</div>
