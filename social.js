@@ -111,6 +111,7 @@ const Social = {
       strengthPatterns: state.strengthPatterns || [],
       strengthGoals: state.strengthGoals || [],
       strengthRecords: state.strengthRecords || {},
+      strengthWeekTemplate: state.strengthWeekTemplate || [[], [], [], [], [], [], []],
       plan: state.plan || [],
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
