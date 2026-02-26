@@ -1029,6 +1029,34 @@
       color: var(--color-label-primary); cursor: pointer;
       max-width: 100%;
     }
+    .strength-pills-wrap {
+      display: flex; flex-wrap: wrap; gap: 4px;
+    }
+    .strength-pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: var(--font-size-caption2);
+      font-family: var(--font-family-body);
+      cursor: pointer;
+      border: 1px solid;
+      background: transparent;
+      transition: transform 0.1s;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .strength-pill:active { transform: scale(0.92); }
+    .strength-pill.selected {
+      color: #fff; border-color: transparent;
+    }
+    .strength-record-pattern-section {
+      border-bottom: 1px solid var(--color-separator);
+      padding-bottom: var(--space-sm);
+      margin-bottom: var(--space-sm);
+    }
+    .strength-record-pattern-section:last-of-type {
+      border-bottom: none; margin-bottom: 0;
+    }
     .strength-add-btn {
       font-size: var(--font-size-caption1); color: var(--color-brand-primary);
       background: none; border: none; cursor: pointer; padding: 2px 0;
