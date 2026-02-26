@@ -1460,20 +1460,13 @@
     .day-schedule-dot {
       width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
     }
-    .strength-week-template { margin: 0 var(--space-base); }
-    .strength-template-row {
-      display: flex; align-items: flex-start; gap: var(--space-sm);
-      padding: var(--space-sm) 0;
-      border-bottom: 0.5px solid var(--color-separator);
+    .strength-week-template { margin: 0 var(--space-base) var(--space-lg); }
+    .strength-template-selects {
+      flex: 1; display: flex; gap: 4px;
     }
-    .strength-template-row:last-child { border-bottom: none; }
-    .strength-template-label {
-      width: 28px; font-size: var(--font-size-subhead);
-      font-weight: var(--font-weight-semibold); flex-shrink: 0;
-      padding-top: 4px;
-    }
-    .strength-template-pills {
-      flex: 1; display: flex; flex-wrap: wrap; gap: 4px;
+    .strength-template-selects .day-schedule-select {
+      flex: 1; min-width: 0; font-size: var(--font-size-caption1);
+      padding: 6px 20px 6px 6px; background-position: right 4px center;
     }
     .text-secondary { color: var(--color-label-secondary); }
     .text-sm { font-size: var(--font-size-footnote); }
