@@ -665,6 +665,7 @@ const App = {
     });
     document.getElementById('plan-run-content').style.display = type === 'run' ? 'block' : 'none';
     document.getElementById('plan-strength-content').style.display = type === 'strength' ? 'block' : 'none';
+    this._scrollPlanToToday();
   },
 
   // --- Goal Type Tab ---
@@ -691,7 +692,18 @@ const App = {
       const navbar = document.querySelector('#screen-plan .nav-bar');
       const wrap = document.querySelector('.plan-type-tabs-wrap');
       if (navbar && wrap) wrap.style.top = navbar.offsetHeight + 'px';
+      this._scrollPlanToToday();
     }
+  },
+
+  _scrollPlanToToday() {
+    const contentId = this._planViewType === 'run' ? 'plan-run-content' : 'plan-strength-content';
+    setTimeout(() => {
+      const content = document.getElementById(contentId);
+      if (!content) return;
+      const todayEl = content.querySelector('.plan-item-today');
+      if (todayEl) todayEl.scrollIntoView({ behavior: 'auto', block: 'center' });
+    }, 50);
   },
 
   // --- Empty State ---
@@ -1499,6 +1511,54 @@ const App = {
     if (typeof Social !== 'undefined' && Social.enabled) Social.clearActiveWorkout();
   },
 
+  openStrengthDetail(dateStr) {
+    const day = this.getStrengthDay(dateStr);
+    if (!day) return;
+    const patterns = this.getStrengthPatterns();
+    const pat = patterns.find(p => p.id === day.patternId);
+    if (!pat) return;
+    const records = this.getStrengthRecords();
+    const record = records[dateStr];
+    const exercises = pat.exercises || [];
+    const d = fromISO(dateStr);
+    const dateLabel = (d.getMonth() + 1) + '/' + d.getDate();
+
+    let html = '<div class="strength-record-sheet">' +
+      '<div class="strength-record-title">💪 ' + escapeHtml(pat.name) + '<span style="font-size:var(--font-size-caption1);color:var(--color-label-secondary);margin-left:var(--space-sm)">' + dateLabel + '</span></div>';
+
+    if (!record || !record.exercises) {
+      html += '<div style="text-align:center;color:var(--color-label-secondary);padding:var(--space-lg) 0">' +
+        '記録がありません</div>';
+    } else {
+      for (let i = 0; i < exercises.length; i++) {
+        const ex = exercises[i];
+        const sets = record.exercises[i];
+        if (!sets || sets.length === 0) continue;
+        const totalVol = sets.reduce((sum, s) => sum + (s.weight * s.reps), 0);
+        html += '<div class="strength-record-exercise">' +
+          '<div class="strength-record-exercise-name">' + escapeHtml(ex.name) + '</div>' +
+          '<div class="strength-set-header"><span></span><span>重さ(kg)</span><span>回数</span><span></span></div>';
+        for (let s = 0; s < sets.length; s++) {
+          html += '<div class="strength-set-row" style="pointer-events:none">' +
+            '<span class="strength-set-num">' + (s + 1) + '</span>' +
+            '<span class="strength-set-input" style="text-align:center">' + sets[s].weight + '</span>' +
+            '<span class="strength-set-input" style="text-align:center">' + sets[s].reps + '</span>' +
+            '<span style="width:20px"></span></div>';
+        }
+        html += '<div style="text-align:right;font-size:var(--font-size-caption1);color:var(--color-label-secondary);padding:var(--space-xs) 0">総負荷量: ' + Math.round(totalVol) + 'kg</div>';
+        html += '</div>';
+      }
+    }
+
+    html += '<div class="strength-record-actions">' +
+      '<button class="strength-record-save" onclick="document.getElementById(\'strength-record-overlay\').classList.remove(\'show\')">閉じる</button>' +
+    '</div></div>';
+
+    const overlay = document.getElementById('strength-record-overlay');
+    overlay.innerHTML = html;
+    overlay.classList.add('show');
+  },
+
   _showStrengthCompletionCelebration(dateStr) {
     const day = this.getStrengthDay(dateStr);
     if (!day) return;
@@ -1746,11 +1806,13 @@ const App = {
         const patColor = selectedId ? patternColorMap[selectedId] || '' : '';
         const borderStyle = patColor ? 'border-left:3px solid ' + patColor + ';padding-left:calc(var(--space-base) - 3px)' : '';
         const selectStyle = patColor ? 'color:' + patColor + ';font-weight:var(--font-weight-semibold)' : '';
-        html += '<li class="plan-item' + sTodayClass + '" data-date="' + day.date + '" style="' + borderStyle + '">' +
+        const hasRecord = isDone && this.getStrengthRecords()[day.date];
+        const itemClick = hasRecord ? ' onclick="if(event.target.tagName===\'SELECT\')return;App.openStrengthDetail(\'' + day.date + '\')"' : '';
+        html += '<li class="plan-item' + sTodayClass + '" data-date="' + day.date + '" style="' + borderStyle + '"' + itemClick + '>' +
           '<span class="plan-day">' + day.dayJa + '</span>' +
           '<span class="plan-date">' + dateLabel + '</span>' +
           '<span class="plan-name" style="flex-direction:column;align-items:flex-start">' +
-            '<select class="strength-select" style="' + selectStyle + '" onchange="App.selectStrengthPattern(\'' + day.date + '\',this.value)">' + options + '</select>' +
+            '<select class="strength-select" style="' + selectStyle + '" onchange="event.stopPropagation();App.selectStrengthPattern(\'' + day.date + '\',this.value)">' + options + '</select>' +
             runContext +
           '</span>' +
           '<span class="plan-check' + (isDone ? ' done' : '') + '"' +
