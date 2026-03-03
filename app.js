@@ -1812,6 +1812,141 @@ const App = {
     this.renderToday();
   },
 
+  // --- Strength Day Sheet (click on Plan tab item) ---
+  openStrengthDaySheet(dateStr) {
+    const sDay = this.getStrengthDay(dateStr);
+    const selectedIds = sDay ? (sDay.patternIds || []) : [];
+    if (selectedIds.length === 0) {
+      this._openStrengthPatternSelector(dateStr);
+    } else {
+      this._openStrengthDayDetail(dateStr);
+    }
+  },
+
+  _openStrengthDayDetail(dateStr) {
+    const sDay = this.getStrengthDay(dateStr);
+    if (!sDay || !sDay.patternIds || sDay.patternIds.length === 0) return;
+    const allPatterns = this.getStrengthPatterns();
+    const records = this.getStrengthRecords();
+    const record = records[dateStr];
+    const d = fromISO(dateStr);
+    const dateLabel = (d.getMonth() + 1) + '/' + d.getDate();
+
+    let html = '<div class="edit-backdrop" onclick="App._closeStrengthDaySheet()"></div>' +
+      '<div class="edit-sheet">' +
+      '<div class="edit-sheet-handle"></div>' +
+      '<div class="edit-sheet-title">' + dateLabel + ' のメニュー</div>';
+
+    for (const pid of sDay.patternIds) {
+      const pat = allPatterns.find(p => p.id === pid);
+      if (!pat) continue;
+      const exercises = pat.exercises || [];
+      const color = STRENGTH_COLORS[allPatterns.indexOf(pat) % STRENGTH_COLORS.length];
+
+      html += '<div class="strength-day-detail-section">' +
+        '<div class="strength-day-detail-pattern" style="color:' + color + '">💪 ' + escapeHtml(pat.name) + '</div>';
+
+      let exData = null;
+      if (record) {
+        if (record.patterns && record.patterns[pid]) exData = record.patterns[pid];
+        else if (record.patternId === pid) exData = record.exercises;
+      }
+
+      if (exData) {
+        for (let i = 0; i < exercises.length; i++) {
+          const ex = exercises[i];
+          const sets = exData[i];
+          if (!sets || sets.length === 0) {
+            html += '<div class="strength-day-detail-exercise">' + (i + 1) + '. ' + escapeHtml(ex.name) + '</div>';
+            continue;
+          }
+          const totalVol = sets.reduce((sum, s) => sum + (s.weight * s.reps), 0);
+          html += '<div class="strength-day-detail-record">' +
+            '<div class="strength-day-detail-record-name">' + (i + 1) + '. ' + escapeHtml(ex.name) + '</div>' +
+            '<div class="strength-day-detail-record-sets">' +
+            sets.map((s, idx) => (idx + 1) + ') ' + s.weight + 'kg\u00d7' + s.reps).join('  ') +
+            '  (総負荷量: ' + Math.round(totalVol) + 'kg)</div></div>';
+        }
+      } else {
+        for (let i = 0; i < exercises.length; i++) {
+          html += '<div class="strength-day-detail-exercise">' + (i + 1) + '. ' + escapeHtml(exercises[i].name) + '</div>';
+        }
+      }
+      html += '</div>';
+    }
+
+    html += '<div class="edit-actions" style="flex-direction:column;gap:var(--space-sm)">' +
+      '<button class="cta-btn" onclick="App._openStrengthPatternSelector(\'' + dateStr + '\')" style="width:100%">メニューを変更する</button>' +
+      '<button class="edit-cancel-btn" onclick="App._closeStrengthDaySheet()" style="width:100%">閉じる</button>' +
+    '</div></div>';
+
+    const overlay = document.getElementById('edit-overlay');
+    overlay.innerHTML = html;
+    overlay.classList.add('show');
+  },
+
+  _openStrengthPatternSelector(dateStr) {
+    const patterns = this.getStrengthPatterns();
+    const sDay = this.getStrengthDay(dateStr);
+    const selectedIds = sDay ? (sDay.patternIds || []) : [];
+    const d = fromISO(dateStr);
+    const dateLabel = (d.getMonth() + 1) + '/' + d.getDate();
+
+    let html = '<div class="edit-backdrop" onclick="App._closeStrengthDaySheet()"></div>' +
+      '<div class="edit-sheet">' +
+      '<div class="edit-sheet-handle"></div>' +
+      '<div class="edit-sheet-title">' + dateLabel + ' のメニューを選択</div>' +
+      '<div class="strength-pattern-selector">';
+
+    for (let i = 0; i < patterns.length; i++) {
+      const p = patterns[i];
+      const isSelected = selectedIds.indexOf(p.id) >= 0;
+      const color = STRENGTH_COLORS[i % STRENGTH_COLORS.length];
+      const exercises = p.exercises || [];
+      const exNames = exercises.map(e => e.name).join(', ');
+
+      html += '<label class="strength-selector-item' + (isSelected ? ' selected' : '') + '" data-pattern-id="' + p.id + '">' +
+        '<div class="strength-selector-check">' +
+          '<input type="checkbox" ' + (isSelected ? 'checked' : '') +
+          ' onchange="App._toggleStrengthSelector(\'' + dateStr + '\',\'' + p.id + '\',this)">' +
+        '</div>' +
+        '<div class="strength-selector-info">' +
+          '<div class="strength-selector-name" style="color:' + color + '">' + escapeHtml(p.name) + '</div>' +
+          (exNames ? '<div class="strength-selector-exercises">' + escapeHtml(exNames) + '</div>' : '') +
+        '</div>' +
+      '</label>';
+    }
+
+    html += '</div>' +
+      '<div class="edit-actions">' +
+        '<button class="cta-btn edit-save-btn" onclick="App._closeStrengthDaySheet()" style="width:100%">完了</button>' +
+      '</div></div>';
+
+    const overlay = document.getElementById('edit-overlay');
+    overlay.innerHTML = html;
+    overlay.classList.add('show');
+  },
+
+  _toggleStrengthSelector(dateStr, patternId, checkbox) {
+    this.toggleStrengthPatternForDay(dateStr, patternId);
+    const item = checkbox.closest('.strength-selector-item');
+    if (item) item.classList.toggle('selected', checkbox.checked);
+  },
+
+  _closeStrengthDaySheet() {
+    document.getElementById('edit-overlay').classList.remove('show');
+    this.renderPlan();
+    this.renderToday();
+  },
+
+  _onStrengthPlanItemClick(dateStr) {
+    if (this._longPressTriggered) {
+      this._longPressTriggered = false;
+      return;
+    }
+    this.openStrengthDaySheet(dateStr);
+  },
+
   openStrengthPatternEditor() {
     const patterns = this.getStrengthPatterns();
     let listHTML = '';
@@ -2012,9 +2147,10 @@ const App = {
         const sTodayClass = day.date === toISO(today()) ? ' plan-item-today' : '';
         const firstColor = selectedIds.length > 0 ? (patternColorMap[selectedIds[0]] || '') : '';
         const borderStyle = firstColor ? 'border-left:3px solid ' + firstColor + ';padding-left:calc(var(--space-base) - 3px)' : '';
-        const hasRecord = isDone && this.getStrengthRecords()[day.date];
-        const itemClick = hasRecord ? ' onclick="App.openStrengthDetail(\'' + day.date + '\')"' : '';
-        html += '<li class="plan-item' + sTodayClass + '" data-date="' + day.date + '" style="' + borderStyle + '"' + itemClick + '>' +
+        html += '<li class="plan-item' + sTodayClass + '" data-date="' + day.date + '" style="' + borderStyle + '" ' +
+          'onclick="App._onStrengthPlanItemClick(\'' + day.date + '\')" ' +
+          'ontouchstart="App._moveStartTouch(event,\'' + day.date + '\',\'strength\')" ontouchend="App._moveCancelTouch()" ontouchmove="App._moveCancelTouch()" ' +
+          'onmousedown="App._moveStartTouch(event,\'' + day.date + '\',\'strength\')" onmouseup="App._moveCancelTouch()" onmouseleave="App._moveCancelTouch()">' +
           '<span class="plan-day">' + day.dayJa + '</span>' +
           '<span class="plan-date">' + dateLabel + '</span>' +
           '<span class="plan-name" style="flex-direction:column;align-items:flex-start">' +
@@ -2517,11 +2653,16 @@ const App = {
   _movingDate: null,
   _longPressTriggered: false,
 
-  _moveStartTouch(e, dateStr) {
+  _moveStartTouch(e, dateStr, type) {
     this._longPressTriggered = false;
+    this._moveType = type || 'run';
     this._moveLongPressTimer = setTimeout(() => {
       this._longPressTriggered = true;
-      this._openMoveSheet(dateStr);
+      if (this._moveType === 'strength') {
+        this._openStrengthMoveSheet(dateStr);
+      } else {
+        this._openMoveSheet(dateStr);
+      }
     }, 500);
   },
 
@@ -2643,6 +2784,105 @@ const App = {
     }
 
     saveState(this.state);
+    this.closeMoveSheet();
+    this._scrollToDate = destDate;
+    this.renderPlan();
+  },
+
+  // --- Long-press to move strength workout ---
+  _openStrengthMoveSheet(dateStr) {
+    if (!this.state || !this.state.plan) return;
+    this._movingDate = dateStr;
+
+    const allDays = [];
+    for (const week of this.state.plan) {
+      for (const day of week.days) allDays.push(day);
+    }
+
+    const srcIdx = allDays.findIndex(d => d.date === dateStr);
+    if (srcIdx < 0) return;
+    const patterns = this.getStrengthPatterns();
+
+    const start = Math.max(0, srcIdx - 10);
+    const end = Math.min(allDays.length, srcIdx + 11);
+    let listHTML = '';
+    for (let i = start; i < end; i++) {
+      const d = allDays[i];
+      const dd = fromISO(d.date);
+      const label = d.dayJa + ' ' + (dd.getMonth() + 1) + '/' + dd.getDate();
+      const sDay = this.getStrengthDay(d.date);
+      const selectedIds = sDay ? (sDay.patternIds || []) : [];
+      let desc = '\u30ec\u30b9\u30c8';
+      if (selectedIds.length > 0) {
+        const names = selectedIds.map(id => {
+          const p = patterns.find(pp => pp.id === id);
+          return p ? p.name : '';
+        }).filter(Boolean);
+        desc = names.join(' / ');
+      }
+
+      if (d.date === dateStr) {
+        listHTML += '<li class="move-target-item move-source-highlight" id="move-source-item">' +
+          '<span class="move-target-date">' + label + '</span>' +
+          '<span class="move-target-desc">' + escapeHtml(desc) + '</span>' +
+        '</li>';
+      } else {
+        listHTML += '<li class="move-target-item" onclick="App._executeStrengthMove(\'' + dateStr + '\',\'' + d.date + '\')">' +
+          '<span class="move-target-date">' + label + '</span>' +
+          '<span class="move-target-desc">' + escapeHtml(desc) + '</span>' +
+        '</li>';
+      }
+    }
+
+    const overlay = document.getElementById('edit-overlay');
+    overlay.innerHTML =
+      '<div class="edit-backdrop" onclick="App.closeMoveSheet()"></div>' +
+      '<div class="edit-sheet">' +
+        '<div class="edit-sheet-handle"></div>' +
+        '<div class="edit-sheet-title">\u79fb\u52d5\u5148\u3092\u9078\u629e</div>' +
+        '<ul class="move-target-list" id="move-target-list">' + listHTML + '</ul>' +
+        '<div class="edit-actions">' +
+          '<button class="edit-cancel-btn" onclick="App.closeMoveSheet()">\u30ad\u30e3\u30f3\u30bb\u30eb</button>' +
+        '</div>' +
+      '</div>';
+    overlay.classList.add('show');
+    setTimeout(() => {
+      const srcEl = document.getElementById('move-source-item');
+      if (srcEl) srcEl.scrollIntoView({ block: 'center' });
+    }, 50);
+  },
+
+  _executeStrengthMove(srcDate, destDate) {
+    if (srcDate === destDate) return;
+
+    // Swap strength plan data between the two dates
+    const srcDay = this.getStrengthDay(srcDate);
+    const destDay = this.getStrengthDay(destDate);
+
+    // Clone data to avoid reference issues
+    const srcData = srcDay ? JSON.parse(JSON.stringify(srcDay)) : null;
+    const destData = destDay ? JSON.parse(JSON.stringify(destDay)) : null;
+
+    this.setStrengthDay(srcDate, destData);
+    this.setStrengthDay(destDate, srcData);
+
+    // Also swap records
+    const records = this.getStrengthRecords();
+    const srcRecord = records[srcDate];
+    const destRecord = records[destDate];
+    if (srcRecord) {
+      records[destDate] = srcRecord;
+    } else {
+      delete records[destDate];
+    }
+    if (destRecord) {
+      records[srcDate] = destRecord;
+    } else {
+      delete records[srcDate];
+    }
+
+    saveState(this.state);
+    if (typeof Social !== 'undefined' && Social.enabled) Social.syncToCloud(this.state);
     this.closeMoveSheet();
     this._scrollToDate = destDate;
     this.renderPlan();
