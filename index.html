@@ -1249,6 +1249,57 @@
     }
     .strength-quick-add-option:active { transform: scale(0.95); }
 
+    /* Strength Day Pattern Selector */
+    .strength-pattern-selector {
+      display: flex; flex-direction: column; gap: var(--space-sm);
+    }
+    .strength-selector-item {
+      display: flex; align-items: flex-start; gap: var(--space-md);
+      padding: var(--space-base) var(--space-md);
+      border-radius: var(--radius-lg);
+      background: var(--color-fill-quaternary);
+      cursor: pointer;
+      transition: background var(--duration-fast) var(--easing-default);
+    }
+    .strength-selector-item.selected {
+      background: var(--color-fill-tertiary);
+    }
+    .strength-selector-check {
+      padding-top: 2px; flex-shrink: 0;
+    }
+    .strength-selector-check input[type="checkbox"] {
+      width: 20px; height: 20px; accent-color: var(--color-brand-primary);
+      cursor: pointer;
+    }
+    .strength-selector-info { flex: 1; min-width: 0; }
+    .strength-selector-name {
+      font-size: var(--font-size-body); font-weight: var(--font-weight-semibold);
+    }
+    .strength-selector-exercises {
+      font-size: var(--font-size-caption1); color: var(--color-label-secondary);
+      margin-top: 2px; line-height: var(--line-height-relaxed);
+    }
+    .strength-day-detail-section {
+      margin-bottom: var(--space-md);
+    }
+    .strength-day-detail-pattern {
+      font-weight: var(--font-weight-semibold); font-size: var(--font-size-body);
+      margin-bottom: var(--space-xs);
+    }
+    .strength-day-detail-exercise {
+      padding-left: var(--space-md); font-size: var(--font-size-subhead);
+      color: var(--color-label-secondary); line-height: var(--line-height-relaxed);
+    }
+    .strength-day-detail-record {
+      padding-left: var(--space-md); margin-bottom: var(--space-xs);
+    }
+    .strength-day-detail-record-name {
+      font-size: var(--font-size-subhead);
+    }
+    .strength-day-detail-record-sets {
+      font-size: var(--font-size-caption1); color: var(--color-label-secondary);
+    }
+
     /* Strength Empty State */
     .strength-empty-state {
       text-align: center;
