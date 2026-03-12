@@ -1529,7 +1529,8 @@ const App = {
     this._strengthRecordDate = dateStr;
     this._strengthRecordPatternIds = day.patternIds;
 
-    let html = '<div class="strength-record-sheet">';
+    let html = '<div class="strength-record-sheet">' +
+      '<button class="strength-record-close" onclick="App.closeStrengthRecordModal()" aria-label="閉じる">✕</button>';
     let globalExIdx = 0;
 
     for (const pid of day.patternIds) {
@@ -1583,6 +1584,9 @@ const App = {
     const overlay = document.getElementById('strength-record-overlay');
     overlay.innerHTML = html;
     overlay.classList.add('show');
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) App.closeStrengthRecordModal();
+    });
   },
 
   _buildSetRowHTML(exerciseIdx, setIdx, weight, reps) {
@@ -1607,6 +1611,10 @@ const App = {
       '<input type="number" class="strength-set-input" data-ex="' + exerciseIdx + '" data-field="reps" value="" placeholder="0" min="0" inputmode="numeric">' +
       '<button class="strength-remove-btn" onclick="this.parentElement.remove()" style="width:20px;height:20px;font-size:10px">✕</button>';
     container.appendChild(row);
+  },
+
+  closeStrengthRecordModal() {
+    document.getElementById('strength-record-overlay').classList.remove('show');
   },
 
   skipStrengthRecord() {
@@ -1686,7 +1694,8 @@ const App = {
     const d = fromISO(dateStr);
     const dateLabel = (d.getMonth() + 1) + '/' + d.getDate();
 
-    let html = '<div class="strength-record-sheet">';
+    let html = '<div class="strength-record-sheet">' +
+      '<button class="strength-record-close" onclick="App.closeStrengthRecordModal()" aria-label="閉じる">✕</button>';
 
     for (const pid of day.patternIds) {
       const pat = allPatterns.find(p => p.id === pid);
@@ -1731,12 +1740,15 @@ const App = {
     }
 
     html += '<div class="strength-record-actions">' +
-      '<button class="strength-record-save" onclick="document.getElementById(\'strength-record-overlay\').classList.remove(\'show\')">閉じる</button>' +
+      '<button class="strength-record-save" onclick="App.closeStrengthRecordModal()">閉じる</button>' +
     '</div></div>';
 
     const overlay = document.getElementById('strength-record-overlay');
     overlay.innerHTML = html;
     overlay.classList.add('show');
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) App.closeStrengthRecordModal();
+    });
   },
 
   _showStrengthCompletionCelebration(dateStr) {

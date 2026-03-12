@@ -1,74 +1,75 @@
 /* ==========================================================
    Runner Coach — Design Tokens
-   Apple HIG inspired variable system
+   Strava × Notion inspired dark-first design system
    ========================================================== */
 
 @import url("font-family.css");
 
 :root {
   /* --------------------------------------------------------
-     COLOR — Brand
+     COLOR — Brand (Orange/Amber accent)
      -------------------------------------------------------- */
-  --color-brand-primary: #007AFF;       /* System Blue */
-  --color-brand-secondary: #5856D6;     /* System Indigo */
-  --color-brand-accent: #FF9500;        /* System Orange */
+  --color-brand-primary: #F97316;        /* Vivid Orange */
+  --color-brand-secondary: #F59E0B;      /* Amber */
+  --color-brand-accent: #FB923C;         /* Light Orange */
 
   /* --------------------------------------------------------
      COLOR — Semantic
      -------------------------------------------------------- */
-  --color-success: #34C759;             /* System Green */
-  --color-warning: #FF9500;             /* System Orange */
-  --color-danger: #FF3B30;              /* System Red */
-  --color-info: #5AC8FA;                /* System Teal */
+  --color-success: #22C55E;              /* Green */
+  --color-warning: #F59E0B;              /* Amber */
+  --color-danger: #EF4444;               /* Red */
+  --color-info: #38BDF8;                 /* Sky */
 
   /* --------------------------------------------------------
      COLOR — Workout types
      -------------------------------------------------------- */
-  --color-easy-run: #34C759;            /* Green — easy / recovery */
-  --color-tempo-run: #FF9500;           /* Orange — tempo */
-  --color-interval: #FF3B30;            /* Red — interval / speed */
-  --color-long-run: #007AFF;            /* Blue — long run */
-  --color-rest-day: #8E8E93;            /* Gray — rest */
-  --color-race: #AF52DE;                /* Purple — race day */
-  --color-cross-train: #5AC8FA;         /* Teal — cross training */
+  --color-easy-run: #22C55E;             /* Green — easy / recovery */
+  --color-tempo-run: #F97316;            /* Orange — tempo */
+  --color-interval: #EF4444;             /* Red — interval / speed */
+  --color-long-run: #3B82F6;             /* Blue — long run */
+  --color-rest-day: #6B7280;             /* Gray — rest */
+  --color-race: #A855F7;                 /* Purple — race day */
+  --color-cross-train: #06B6D4;          /* Cyan — cross training */
 
   /* --------------------------------------------------------
      COLOR — Light mode surfaces
      -------------------------------------------------------- */
   --color-bg-primary: #FFFFFF;
-  --color-bg-secondary: #F2F2F7;
+  --color-bg-secondary: #F9FAFB;
   --color-bg-tertiary: #FFFFFF;
-  --color-bg-grouped: #F2F2F7;
+  --color-bg-grouped: #F3F4F6;
   --color-bg-elevated: #FFFFFF;
 
   /* --------------------------------------------------------
      COLOR — Light mode labels
      -------------------------------------------------------- */
-  --color-label-primary: #000000;
-  --color-label-secondary: rgba(60, 60, 67, 0.6);
-  --color-label-tertiary: rgba(60, 60, 67, 0.3);
-  --color-label-quaternary: rgba(60, 60, 67, 0.18);
+  --color-label-primary: #111827;
+  --color-label-secondary: rgba(55, 65, 81, 0.7);
+  --color-label-tertiary: rgba(55, 65, 81, 0.4);
+  --color-label-quaternary: rgba(55, 65, 81, 0.2);
 
   /* --------------------------------------------------------
      COLOR — Light mode fills & separators
      -------------------------------------------------------- */
-  --color-fill-primary: rgba(120, 120, 128, 0.2);
-  --color-fill-secondary: rgba(120, 120, 128, 0.16);
-  --color-fill-tertiary: rgba(120, 120, 128, 0.12);
-  --color-separator: rgba(60, 60, 67, 0.29);
-  --color-separator-opaque: #C6C6C8;
+  --color-fill-primary: rgba(107, 114, 128, 0.18);
+  --color-fill-secondary: rgba(107, 114, 128, 0.14);
+  --color-fill-tertiary: rgba(107, 114, 128, 0.10);
+  --color-fill-quaternary: rgba(107, 114, 128, 0.06);
+  --color-separator: rgba(55, 65, 81, 0.12);
+  --color-separator-opaque: #E5E7EB;
 
   /* --------------------------------------------------------
-     TYPOGRAPHY — Sizes (Apple HIG scale)
+     TYPOGRAPHY — Sizes (tighter, more modern scale)
      -------------------------------------------------------- */
-  --font-size-large-title: 34px;
-  --font-size-title1: 28px;
-  --font-size-title2: 22px;
-  --font-size-title3: 20px;
-  --font-size-headline: 17px;
-  --font-size-body: 17px;
-  --font-size-callout: 16px;
-  --font-size-subhead: 15px;
+  --font-size-large-title: 32px;
+  --font-size-title1: 26px;
+  --font-size-title2: 21px;
+  --font-size-title3: 18px;
+  --font-size-headline: 16px;
+  --font-size-body: 15px;
+  --font-size-callout: 14px;
+  --font-size-subhead: 14px;
   --font-size-footnote: 13px;
   --font-size-caption1: 12px;
   --font-size-caption2: 11px;
@@ -85,9 +86,9 @@
   /* --------------------------------------------------------
      TYPOGRAPHY — Line heights
      -------------------------------------------------------- */
-  --line-height-tight: 1.1;
-  --line-height-normal: 1.35;
-  --line-height-relaxed: 1.5;
+  --line-height-tight: 1.15;
+  --line-height-normal: 1.4;
+  --line-height-relaxed: 1.6;
 
   /* --------------------------------------------------------
      SPACING — 4px base grid
@@ -104,7 +105,7 @@
   --space-4xl: 48px;
 
   /* --------------------------------------------------------
-     RADIUS
+     RADIUS (slightly larger for modern feel)
      -------------------------------------------------------- */
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -113,12 +114,12 @@
   --radius-full: 9999px;
 
   /* --------------------------------------------------------
-     SHADOWS — Apple-style layering
+     SHADOWS — Subtle, layered
      -------------------------------------------------------- */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
-  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.10);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
 
   /* --------------------------------------------------------
      ANIMATION
@@ -144,50 +145,51 @@
    ========================================================== */
 @media (prefers-color-scheme: dark) {
   :root {
-    /* Surfaces */
-    --color-bg-primary: #000000;
-    --color-bg-secondary: #1C1C1E;
-    --color-bg-tertiary: #2C2C2E;
-    --color-bg-grouped: #000000;
-    --color-bg-elevated: #1C1C1E;
+    /* Surfaces — deep, layered dark */
+    --color-bg-primary: #0A0A0A;
+    --color-bg-secondary: #141414;
+    --color-bg-tertiary: #1E1E1E;
+    --color-bg-grouped: #0A0A0A;
+    --color-bg-elevated: #1A1A1A;
 
     /* Labels */
-    --color-label-primary: #FFFFFF;
-    --color-label-secondary: rgba(235, 235, 245, 0.6);
-    --color-label-tertiary: rgba(235, 235, 245, 0.3);
-    --color-label-quaternary: rgba(235, 235, 245, 0.18);
+    --color-label-primary: #F9FAFB;
+    --color-label-secondary: rgba(249, 250, 251, 0.60);
+    --color-label-tertiary: rgba(249, 250, 251, 0.36);
+    --color-label-quaternary: rgba(249, 250, 251, 0.18);
 
     /* Fills & Separators */
-    --color-fill-primary: rgba(120, 120, 128, 0.36);
-    --color-fill-secondary: rgba(120, 120, 128, 0.32);
-    --color-fill-tertiary: rgba(120, 120, 128, 0.24);
-    --color-separator: rgba(84, 84, 88, 0.65);
-    --color-separator-opaque: #38383A;
+    --color-fill-primary: rgba(255, 255, 255, 0.14);
+    --color-fill-secondary: rgba(255, 255, 255, 0.10);
+    --color-fill-tertiary: rgba(255, 255, 255, 0.07);
+    --color-fill-quaternary: rgba(255, 255, 255, 0.04);
+    --color-separator: rgba(255, 255, 255, 0.08);
+    --color-separator-opaque: #2A2A2A;
 
-    /* Brand (dark mode accessible) */
-    --color-brand-primary: #0A84FF;
-    --color-brand-secondary: #5E5CE6;
-    --color-brand-accent: #FF9F0A;
+    /* Brand (dark mode — slightly brighter) */
+    --color-brand-primary: #FB923C;
+    --color-brand-secondary: #FBBF24;
+    --color-brand-accent: #FDBA74;
 
-    /* Semantic (dark mode accessible) */
-    --color-success: #30D158;
-    --color-warning: #FF9F0A;
-    --color-danger: #FF453A;
-    --color-info: #64D2FF;
+    /* Semantic (dark mode) */
+    --color-success: #4ADE80;
+    --color-warning: #FBBF24;
+    --color-danger: #F87171;
+    --color-info: #7DD3FC;
 
-    /* Workout types (dark mode accessible) */
-    --color-easy-run: #30D158;
-    --color-tempo-run: #FF9F0A;
-    --color-interval: #FF453A;
-    --color-long-run: #0A84FF;
-    --color-rest-day: #98989D;
-    --color-race: #BF5AF2;
-    --color-cross-train: #64D2FF;
+    /* Workout types (dark mode) */
+    --color-easy-run: #4ADE80;
+    --color-tempo-run: #FB923C;
+    --color-interval: #F87171;
+    --color-long-run: #60A5FA;
+    --color-rest-day: #9CA3AF;
+    --color-race: #C084FC;
+    --color-cross-train: #22D3EE;
 
     /* Shadows */
-    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
-    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
-    --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.2);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255,255,255,0.04);
   }
 }
