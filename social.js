@@ -88,34 +88,77 @@ const Social = {
   },
 
   // --- Profile & Sync ---
+  // Recursively strip undefined values that cause Firestore writes to fail
+  _cleanData(obj) {
+    if (obj === null || obj === undefined) return null;
+    if (Array.isArray(obj)) return obj.map(v => this._cleanData(v));
+    if (typeof obj === 'object' && !(obj instanceof Date) && !obj.toDate) {
+      const cleaned = {};
+      for (const key of Object.keys(obj)) {
+        if (obj[key] !== undefined) cleaned[key] = this._cleanData(obj[key]);
+      }
+      return cleaned;
+    }
+    return obj;
+  },
+
   async syncToCloud(state) {
     if (!this.enabled || !this.currentUser) return;
     if (!state) state = {};
-    // Always include shortId to prevent accidental loss
-    const shortId = await this.getOrCreateUserId();
-    const data = {
-      shortId: shortId,
-      displayName: this.currentUser.displayName || '',
-      photoURL: this.currentUser.photoURL || '',
-      settings: {
-        raceName: state.raceName || '',
-        raceDate: state.raceDate || '',
-        raceType: state.raceType || 'full',
-        targetTime: state.targetTime || '',
-        planWeeks: state.plan ? state.plan.length : 0
-      },
-      completed: state.completed || {},
-      actualDist: state.actualDist || {},
-      actualDuration: state.actualDuration || {},
-      strengthPlan: state.strengthPlan || {},
-      strengthPatterns: state.strengthPatterns || [],
-      strengthGoals: state.strengthGoals || [],
-      strengthRecords: state.strengthRecords || {},
-      strengthWeekTemplate: state.strengthWeekTemplate || [[], [], [], [], [], [], []],
-      plan: state.plan || [],
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    };
-    await this.db.collection('users').doc(this.currentUser.uid).set(data, { merge: true });
+    try {
+      // Always include shortId to prevent accidental loss
+      const shortId = await this.getOrCreateUserId();
+      const data = this._cleanData({
+        shortId: shortId,
+        displayName: this.currentUser.displayName || '',
+        photoURL: this.currentUser.photoURL || '',
+        settings: {
+          raceName: state.raceName || '',
+          raceDate: state.raceDate || '',
+          raceType: state.raceType || 'full',
+          targetTime: state.targetTime || '',
+          planWeeks: state.plan ? state.plan.length : 0
+        },
+        completed: state.completed || {},
+        actualDist: state.actualDist || {},
+        actualDuration: state.actualDuration || {},
+        strengthPlan: state.strengthPlan || {},
+        strengthPatterns: state.strengthPatterns || [],
+        strengthGoals: state.strengthGoals || [],
+        strengthRecords: state.strengthRecords || {},
+        strengthWeekTemplate: state.strengthWeekTemplate || [[], [], [], [], [], [], []],
+        plan: state.plan || [],
+      });
+      data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+      await this.db.collection('users').doc(this.currentUser.uid).set(data, { merge: true });
+    } catch (e) {
+      console.error('syncToCloud failed:', e);
+      // Fallback: sync critical friend-visible data without heavy fields
+      try {
+        const shortId = await this.getOrCreateUserId();
+        const fallback = this._cleanData({
+          shortId: shortId,
+          displayName: this.currentUser.displayName || '',
+          photoURL: this.currentUser.photoURL || '',
+          settings: {
+            raceName: state.raceName || '',
+            raceDate: state.raceDate || '',
+            raceType: state.raceType || 'full',
+            targetTime: state.targetTime || '',
+            planWeeks: state.plan ? state.plan.length : 0
+          },
+          completed: state.completed || {},
+          actualDist: state.actualDist || {},
+          actualDuration: state.actualDuration || {},
+          plan: state.plan || [],
+        });
+        fallback.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+        await this.db.collection('users').doc(this.currentUser.uid).set(fallback, { merge: true });
+        console.log('syncToCloud fallback succeeded (without strength data)');
+      } catch (e2) {
+        console.error('syncToCloud fallback also failed:', e2);
+      }
+    }
   },
 
   async getUserProfile(uid) {

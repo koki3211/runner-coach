@@ -133,7 +133,7 @@ function applyManakoOverlay(weeks, raceDate, raceType, paces) {
           date: week.days[i].date, dayJa: week.days[i].dayJa, dayEn: week.days[i].dayEn,
           type: m.type, name: m.name, dist: m.dist,
           pace: m.paceKey && paces[m.paceKey] ? formatPace(paces[m.paceKey], true) : '-',
-          comment: m.comment || '', detail: m.detail || undefined,
+          comment: m.comment || '', ...(m.detail ? { detail: m.detail } : {}),
           isKeyWorkout: m.key || false
         };
       }
@@ -540,6 +540,7 @@ const App = {
             plan: cloudData.plan,
             completed: cloudData.completed || {},
             actualDist: cloudData.actualDist || {},
+            actualDuration: cloudData.actualDuration || {},
             strengthPlan: cloudData.strengthPlan || {},
             strengthPatterns: cloudData.strengthPatterns || [],
             strengthGoals: cloudData.strengthGoals || [],
@@ -859,6 +860,7 @@ const App = {
       plan: newWeeks,
       completed: this.state ? (this.state.completed || {}) : {},
       actualDist: this.state ? (this.state.actualDist || {}) : {},
+      actualDuration: this.state ? (this.state.actualDuration || {}) : {},
       strengthPlan: this.state ? (this.state.strengthPlan || {}) : {},
       strengthPatterns: this.state ? (this.state.strengthPatterns || []) : [],
       strengthGoals: this.state ? (this.state.strengthGoals || []) : [],
