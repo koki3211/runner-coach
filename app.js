@@ -1578,7 +1578,10 @@ const App = {
       html += '</div>';
     }
 
-    html += '<div class="strength-record-actions">' +
+    html += '<div style="text-align:center;padding:var(--space-sm) var(--space-md) 0">' +
+      '<button onclick="App.editMenuFromRecordModal()" style="background:none;border:none;color:var(--color-orange);font-size:var(--font-size-callout);cursor:pointer;padding:var(--space-xs) var(--space-sm)">メニューを編集</button>' +
+    '</div>' +
+    '<div class="strength-record-actions">' +
       '<button class="strength-record-skip" onclick="App.skipStrengthRecord()">スキップ</button>' +
       '<button class="strength-record-save" onclick="App.saveStrengthRecordModal()">記録して完了</button>' +
     '</div></div>';
@@ -1617,6 +1620,12 @@ const App = {
 
   closeStrengthRecordModal() {
     document.getElementById('strength-record-overlay').classList.remove('show');
+  },
+
+  editMenuFromRecordModal() {
+    this._editMenuFromRecord = true;
+    this._editMenuRecordDate = this._strengthRecordDate;
+    this.openStrengthPatternEditor();
   },
 
   skipStrengthRecord() {
@@ -2070,6 +2079,11 @@ const App = {
 
   closeStrengthPatternEditor() {
     document.getElementById('edit-overlay').classList.remove('show');
+    if (this._editMenuFromRecord) {
+      this._editMenuFromRecord = false;
+      const dateStr = this._editMenuRecordDate;
+      if (dateStr) this.openStrengthRecordModal(dateStr);
+    }
   },
 
   renderStrengthPlan() {
