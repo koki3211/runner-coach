@@ -2307,7 +2307,13 @@ const App = {
       '<div id="friends-list"><div class="empty-state"><div class="empty-icon">\u{23F3}</div><div class="empty-text">読み込み中...</div></div></div>';
 
     // Load incoming requests
-    const requests = await Social.getIncomingRequests();
+    let requests = [];
+    let friends = [];
+    try {
+      requests = await Social.getIncomingRequests();
+    } catch (e) {
+      console.error('Failed to load friend requests:', e);
+    }
     const reqEl = document.getElementById('friend-requests');
     if (requests.length > 0) {
       reqEl.innerHTML = '<div class="section" style="padding-bottom:0"><div class="section-header">フレンドリクエスト</div>' +
@@ -2322,7 +2328,11 @@ const App = {
     }
 
     // Load friends data
-    const friends = await Social.loadFriendsData();
+    try {
+      friends = await Social.loadFriendsData();
+    } catch (e) {
+      console.error('Failed to load friends data:', e);
+    }
     this.friendsData = friends;
     const listEl = document.getElementById('friends-list');
 
@@ -2359,7 +2369,8 @@ const App = {
 
         // Today's workout from friend's plan
         const friendWorkout = findTodayWorkout(f.plan, todayStr);
-        const todayHTML = buildTodayStatusHTML(friendWorkout, isDone, f.activeWorkout);
+        const fTodayActualDist = f.actualDist && f.actualDist[todayStr];
+        const todayHTML = buildTodayStatusHTML(friendWorkout, isDone, f.activeWorkout, fTodayActualDist);
 
         // Week dots
         const monday = getMonday(new Date());
@@ -2424,12 +2435,24 @@ const App = {
         if (day.date === todayStr) currentWeekIdx = wi;
         const done = friend.completed && friend.completed[day.date];
         const type = TYPE_MIGRATION[day.type] || day.type;
-        const distLabel = day.dist > 0 ? formatDist(day.dist, day.type) + 'km' : '\u2014';
         const d = fromISO(day.date);
         const dateLabel = (d.getMonth() + 1) + '/' + d.getDate();
         const migratedDay = { ...day, type: type };
         const nameDisplay = formatWorkoutDescription(migratedDay);
         const isToday = day.date === todayStr;
+
+        // Actual distance / duration (practice records)
+        const fActualDist = friend.actualDist && friend.actualDist[day.date];
+        let actualLabel = '';
+        if (type !== 'rest') {
+          if (fActualDist !== null && fActualDist !== undefined) {
+            actualLabel = '<span class="plan-actual">' + fActualDist + 'km</span>';
+          } else if (done) {
+            actualLabel = '<span class="plan-actual">' + formatDist(day.dist, day.type) + 'km</span>';
+          } else {
+            actualLabel = '<span class="plan-actual plan-actual-empty">\u2014</span>';
+          }
+        }
 
         const hasComment = day.comment && day.comment.trim();
         const commentBadge = hasComment ? '<span class="plan-comment-badge">\u2026</span>' : '';
@@ -2441,7 +2464,7 @@ const App = {
           '<span class="plan-day">' + day.dayJa + '</span>' +
           '<span class="plan-date">' + dateLabel + '</span>' +
           '<span class="plan-name"><span class="plan-name-text">' + escapeHtml(nameDisplay) + '</span>' + commentBadge + '</span>' +
-          '<span class="plan-dist">' + distLabel + '</span>' +
+          actualLabel +
           '<span class="plan-check' + (done ? ' done' : '') + '"></span></li>';
       }
       planHTML += '</ul></div>';
@@ -3223,12 +3246,17 @@ function formatWorkoutDescription(day) {
   return typeLabel;
 }
 
-function buildTodayStatusHTML(workout, done, activeWorkout) {
+function buildTodayStatusHTML(workout, done, activeWorkout, actualDist) {
   if (!workout) return '<span style="color:var(--color-label-secondary)">—</span>';
   const type = TYPE_MIGRATION[workout.type] || workout.type;
   if (type === 'rest') return '<span style="color:var(--color-label-secondary)">レスト</span>';
   const name = TYPE_JA[type] || workout.name;
-  if (done) return '<span style="color:var(--color-success);font-weight:600">\u2713 ' + escapeHtml(name) + '完了</span>';
+  if (done) {
+    const distInfo = (actualDist !== null && actualDist !== undefined)
+      ? ' ' + actualDist + 'km'
+      : (workout.dist > 0 ? ' ' + formatDist(workout.dist, workout.type) + 'km' : '');
+    return '<span style="color:var(--color-success);font-weight:600">\u2713 ' + escapeHtml(name) + distInfo + ' 完了</span>';
+  }
   // Active workout: check if startedAt is within 3 hours
   if (activeWorkout && activeWorkout.startedAt) {
     const startMs = activeWorkout.startedAt.toDate ? activeWorkout.startedAt.toDate().getTime() : activeWorkout.startedAt;
