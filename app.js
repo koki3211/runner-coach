@@ -538,36 +538,56 @@ const App = {
     if (user && typeof Social !== 'undefined' && Social.enabled) {
       // If local state is empty, try to restore from cloud first
       if (!this.state || !this.state.plan) {
-        const cloudData = await Social.getUserProfile(user.uid);
-        if (cloudData && cloudData.plan && cloudData.plan.length > 0) {
-          this.state = {
-            raceName: cloudData.settings.raceName || '',
-            raceDate: cloudData.settings.raceDate || '',
-            raceType: cloudData.settings.raceType || 'full',
-            targetTime: cloudData.settings.targetTime || '',
-            plan: cloudData.plan,
-            completed: cloudData.completed || {},
-            actualDist: cloudData.actualDist || {},
-            actualDuration: cloudData.actualDuration || {},
-            strengthPlan: cloudData.strengthPlan || {},
-            strengthPatterns: cloudData.strengthPatterns || [],
-            strengthGoals: cloudData.strengthGoals || [],
-            strengthRecords: cloudData.strengthRecords || {},
-            strengthWeekTemplate: cloudData.strengthWeekTemplate || [[], [], [], [], [], [], []],
-            paces: this._recalcPaces(cloudData.settings.targetTime, cloudData.settings.raceType)
-          };
-          saveState(this.state);
-          this.renderGoalScreen();
-          this.renderToday();
-          this.renderPlan();
-          this.switchTab('today', document.querySelector('[data-tab="today"]'));
-        }
+        await this._restoreFromCloud(user.uid);
       } else {
         // Local has data — sync to cloud
         Social.syncToCloud(this.state);
       }
       // Process invite link if present
       this._processInviteParam();
+    }
+  },
+
+  async _restoreFromCloud(uid, isRetry) {
+    try {
+      const cloudData = await Social.getUserProfile(uid);
+      if (cloudData && cloudData.plan && cloudData.plan.length > 0) {
+        this.state = {
+          raceName: (cloudData.settings && cloudData.settings.raceName) || '',
+          raceDate: (cloudData.settings && cloudData.settings.raceDate) || '',
+          raceType: (cloudData.settings && cloudData.settings.raceType) || 'full',
+          targetTime: (cloudData.settings && cloudData.settings.targetTime) || '',
+          plan: cloudData.plan,
+          completed: cloudData.completed || {},
+          actualDist: cloudData.actualDist || {},
+          actualDuration: cloudData.actualDuration || {},
+          strengthPlan: cloudData.strengthPlan || {},
+          strengthPatterns: cloudData.strengthPatterns || [],
+          strengthGoals: cloudData.strengthGoals || [],
+          strengthRecords: cloudData.strengthRecords || {},
+          strengthWeekTemplate: cloudData.strengthWeekTemplate || [[], [], [], [], [], [], []],
+          paces: this._recalcPaces(
+            (cloudData.settings && cloudData.settings.targetTime) || '',
+            (cloudData.settings && cloudData.settings.raceType) || 'full'
+          )
+        };
+        saveState(this.state);
+        this.renderGoalScreen();
+        this.renderToday();
+        this.renderPlan();
+        this.switchTab('today', document.querySelector('[data-tab="today"]'));
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error('Cloud restore failed:', e);
+      if (!isRetry) {
+        // Retry once after short delay
+        await new Promise(function(r) { setTimeout(r, 2000); });
+        return this._restoreFromCloud(uid, true);
+      }
+      alert('クラウドからのデータ復元に失敗しました。ネットワークを確認して、もう一度ログインしてください。');
+      return false;
     }
   },
 
