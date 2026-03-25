@@ -553,15 +553,6 @@ const App = {
 
   _debugLog(msg) {
     console.log('[debug] ' + msg);
-    var el = document.getElementById('debug-log');
-    if (!el) {
-      el = document.createElement('div');
-      el.id = 'debug-log';
-      el.style.cssText = 'position:fixed;bottom:60px;left:0;right:0;z-index:9999;background:rgba(0,0,0,0.85);color:#0f0;font-size:11px;font-family:monospace;padding:8px 12px;max-height:40vh;overflow-y:auto;white-space:pre-wrap;';
-      document.body.appendChild(el);
-    }
-    el.textContent += new Date().toLocaleTimeString() + ' ' + msg + '\n';
-    el.scrollTop = el.scrollHeight;
   },
 
   async _restoreFromCloud(uid, isRetry) {
