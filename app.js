@@ -535,9 +535,11 @@ const App = {
 
     this.renderFriends();
     // Sync or restore from cloud
+    console.log('[auth] user:', user ? user.uid : 'null', 'Social.enabled:', typeof Social !== 'undefined' && Social.enabled, 'hasState:', !!(this.state && this.state.plan));
     if (user && typeof Social !== 'undefined' && Social.enabled) {
       // If local state is empty, try to restore from cloud first
       if (!this.state || !this.state.plan) {
+        console.log('[auth] No local state, attempting cloud restore...');
         await this._restoreFromCloud(user.uid);
       } else {
         // Local has data — sync to cloud
@@ -549,8 +551,12 @@ const App = {
   },
 
   async _restoreFromCloud(uid, isRetry) {
+    console.log('[restore] Starting cloud restore for uid:', uid, 'retry:', !!isRetry);
     try {
       const cloudData = await Social.getUserProfile(uid);
+      console.log('[restore] Got cloudData:', cloudData ? 'exists' : 'null',
+        'plan:', cloudData && cloudData.plan ? cloudData.plan.length + ' weeks' : 'none',
+        'completed:', cloudData && cloudData.completed ? Object.keys(cloudData.completed).length + ' days' : 'none');
       if (cloudData && cloudData.plan && cloudData.plan.length > 0) {
         this.state = {
           raceName: (cloudData.settings && cloudData.settings.raceName) || '',
@@ -576,17 +582,18 @@ const App = {
         this.renderToday();
         this.renderPlan();
         this.switchTab('today', document.querySelector('[data-tab="today"]'));
+        console.log('[restore] Success — plan restored');
         return true;
       }
+      console.log('[restore] No plan data in cloud');
       return false;
     } catch (e) {
-      console.error('Cloud restore failed:', e);
+      console.error('[restore] Cloud restore failed:', e);
       if (!isRetry) {
-        // Retry once after short delay
         await new Promise(function(r) { setTimeout(r, 2000); });
         return this._restoreFromCloud(uid, true);
       }
-      alert('クラウドからのデータ復元に失敗しました。ネットワークを確認して、もう一度ログインしてください。');
+      alert('クラウドからのデータ復元に失敗しました。\nエラー: ' + e.message + '\nネットワークを確認して、もう一度ログインしてください。');
       return false;
     }
   },
