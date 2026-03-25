@@ -116,6 +116,22 @@
       background: transparent; color: var(--color-label-secondary); cursor: pointer;
     }
     .account-popup-id .id-copy-small:active { opacity: 0.7; }
+    .account-popup-cal {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: var(--space-sm) 0; margin-top: var(--space-sm);
+      border-top: 1px solid var(--color-separator);
+      font-size: var(--font-size-subhead);
+    }
+    .cal-toggle-btn {
+      padding: var(--space-xs) var(--space-md);
+      border: 1px solid var(--color-separator); border-radius: 16px;
+      background: var(--color-fill-tertiary); color: var(--color-label-secondary);
+      font-size: var(--font-size-caption1); font-weight: var(--font-weight-semibold);
+      cursor: pointer; min-width: 48px;
+    }
+    .cal-toggle-btn.on {
+      background: var(--color-brand-accent); color: #fff; border-color: var(--color-brand-accent);
+    }
     .account-popup-actions { padding-top: var(--space-md); }
     .account-popup-logout {
       width: 100%; padding: var(--space-sm) var(--space-md);
@@ -1761,6 +1777,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script src="social.js"></script>
+<script src="calendar-sync.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

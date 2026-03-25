@@ -469,6 +469,9 @@ const App = {
     // Firebase
     if (typeof Social !== 'undefined') Social.init();
 
+    // Calendar sync
+    if (typeof CalendarSync !== 'undefined') CalendarSync.init();
+
     // Show login screen for first-time users (no plan, not logged in)
     this._checkFirstTimeLogin();
 
@@ -610,6 +613,28 @@ const App = {
     });
   },
 
+  async toggleCalendarSync(btn) {
+    if (typeof CalendarSync === 'undefined') return;
+    if (CalendarSync.isEnabled()) {
+      CalendarSync.disable();
+      btn.classList.remove('on');
+      btn.textContent = 'OFF';
+    } else {
+      btn.textContent = '...';
+      const ok = await CalendarSync.enable();
+      if (ok) {
+        btn.classList.add('on');
+        btn.textContent = 'ON';
+        // Initial sync
+        if (this.state && this.state.plan) {
+          CalendarSync.syncPlan(this.state);
+        }
+      } else {
+        btn.textContent = 'OFF';
+      }
+    }
+  },
+
   toggleAccountPopup() {
     const popup = document.getElementById('account-popup');
     const backdrop = document.getElementById('account-popup-backdrop');
@@ -652,11 +677,21 @@ const App = {
       ? '<div class="account-popup-id"><span>あなたのID</span><span class="id-value">' + escapeHtml(this._myShortId) + '</span><button class="id-copy-small" onclick="navigator.clipboard.writeText(\'' + escapeHtml(this._myShortId) + '\');this.textContent=\'✓\';setTimeout(()=>this.textContent=\'コピー\',1500)">コピー</button></div>'
       : '';
 
+    const calEnabled = typeof CalendarSync !== 'undefined' && CalendarSync.isEnabled();
+    const calToggleHTML =
+      '<div class="account-popup-cal">' +
+        '<span>📅 Googleカレンダー連携</span>' +
+        '<button class="cal-toggle-btn ' + (calEnabled ? 'on' : '') + '" onclick="App.toggleCalendarSync(this)">' +
+          (calEnabled ? 'ON' : 'OFF') +
+        '</button>' +
+      '</div>';
+
     popup.innerHTML =
       '<div class="account-popup-header">' + avatarHTML +
         '<div><div class="account-popup-name">' + escapeHtml(user.displayName || '') + '</div>' +
         '<div class="account-popup-email">' + escapeHtml(user.email || '') + '</div></div>' +
       '</div>' + idHTML +
+      calToggleHTML +
       '<div class="account-popup-actions">' +
         '<button class="account-popup-logout" onclick="Social.logout();App.closeAccountPopup()">ログアウト</button>' +
       '</div>';
@@ -878,8 +913,9 @@ const App = {
     this.renderPlan();
     this.switchTab('today', document.querySelector('[data-tab="today"]'));
 
-    // Sync to Firebase
+    // Sync to Firebase & Calendar
     if (typeof Social !== 'undefined' && Social.enabled) Social.syncToCloud(this.state);
+    if (typeof CalendarSync !== 'undefined') CalendarSync.syncPlan(this.state);
   },
 
   // --- Get Today's Workout ---
@@ -1402,6 +1438,7 @@ const App = {
     }
     saveState(this.state);
     if (typeof Social !== 'undefined' && Social.enabled) Social.syncToCloud(this.state);
+    if (typeof CalendarSync !== 'undefined') CalendarSync.syncPlan(this.state);
     this.renderPlan();
     this.renderToday();
     alert('今日以降のプランに反映しました');
@@ -1462,6 +1499,7 @@ const App = {
     }
     saveState(this.state);
     if (typeof Social !== 'undefined' && Social.enabled) Social.syncToCloud(this.state);
+    if (typeof CalendarSync !== 'undefined') CalendarSync.syncPlan(this.state);
   },
 
   startStrengthWorkout() {
@@ -3032,6 +3070,7 @@ const App = {
     this.renderPlan();
     this.renderToday();
     if (typeof Social !== 'undefined' && Social.enabled) Social.syncToCloud(this.state);
+    if (typeof CalendarSync !== 'undefined') CalendarSync.syncPlan(this.state);
   },
 
   // --- Toggle Completion ---
