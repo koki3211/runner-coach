@@ -535,14 +535,15 @@ const App = {
 
     this.renderFriends();
     // Sync or restore from cloud
-    console.log('[auth] user:', user ? user.uid : 'null', 'Social.enabled:', typeof Social !== 'undefined' && Social.enabled, 'hasState:', !!(this.state && this.state.plan));
+    this._debugLog('auth: user=' + (user ? user.uid.slice(0,8) + '...' : 'null') + ' Social.enabled=' + (typeof Social !== 'undefined' && Social.enabled) + ' hasState=' + !!(this.state && this.state.plan));
     if (user && typeof Social !== 'undefined' && Social.enabled) {
       // If local state is empty, try to restore from cloud first
       if (!this.state || !this.state.plan) {
-        console.log('[auth] No local state, attempting cloud restore...');
+        this._debugLog('ローカルにデータなし → クラウドから復元開始...');
         await this._restoreFromCloud(user.uid);
       } else {
         // Local has data — sync to cloud
+        this._debugLog('ローカルにデータあり → クラウドに同期');
         Social.syncToCloud(this.state);
       }
       // Process invite link if present
@@ -550,13 +551,26 @@ const App = {
     }
   },
 
+  _debugLog(msg) {
+    console.log('[debug] ' + msg);
+    var el = document.getElementById('debug-log');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'debug-log';
+      el.style.cssText = 'position:fixed;bottom:60px;left:0;right:0;z-index:9999;background:rgba(0,0,0,0.85);color:#0f0;font-size:11px;font-family:monospace;padding:8px 12px;max-height:40vh;overflow-y:auto;white-space:pre-wrap;';
+      document.body.appendChild(el);
+    }
+    el.textContent += new Date().toLocaleTimeString() + ' ' + msg + '\n';
+    el.scrollTop = el.scrollHeight;
+  },
+
   async _restoreFromCloud(uid, isRetry) {
-    console.log('[restore] Starting cloud restore for uid:', uid, 'retry:', !!isRetry);
+    this._debugLog('restore: uid=' + uid.slice(0,8) + '... retry=' + !!isRetry);
     try {
       const cloudData = await Social.getUserProfile(uid);
-      console.log('[restore] Got cloudData:', cloudData ? 'exists' : 'null',
-        'plan:', cloudData && cloudData.plan ? cloudData.plan.length + ' weeks' : 'none',
-        'completed:', cloudData && cloudData.completed ? Object.keys(cloudData.completed).length + ' days' : 'none');
+      this._debugLog('restore: cloudData=' + (cloudData ? 'あり' : 'null') +
+        ' plan=' + (cloudData && cloudData.plan ? cloudData.plan.length + '週' : 'なし') +
+        ' completed=' + (cloudData && cloudData.completed ? Object.keys(cloudData.completed).length + '日' : 'なし'));
       if (cloudData && cloudData.plan && cloudData.plan.length > 0) {
         this.state = {
           raceName: (cloudData.settings && cloudData.settings.raceName) || '',
@@ -582,13 +596,13 @@ const App = {
         this.renderToday();
         this.renderPlan();
         this.switchTab('today', document.querySelector('[data-tab="today"]'));
-        console.log('[restore] Success — plan restored');
+        this._debugLog('restore: ✅ 復元成功！');
         return true;
       }
-      console.log('[restore] No plan data in cloud');
+      this._debugLog('restore: ⚠ クラウドにプランデータなし');
       return false;
     } catch (e) {
-      console.error('[restore] Cloud restore failed:', e);
+      this._debugLog('restore: ❌ エラー: ' + e.message);
       if (!isRetry) {
         await new Promise(function(r) { setTimeout(r, 2000); });
         return this._restoreFromCloud(uid, true);
