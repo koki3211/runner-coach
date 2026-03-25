@@ -110,13 +110,24 @@ const CalendarSync = {
     return events;
   },
 
+  _lastSyncInfo: '',
+
+  getLastSyncInfo() { return this._lastSyncInfo; },
+
   // --- Main Sync ---
   async syncPlan(state) {
-    if (!this._enabled || !state || this._syncing) return;
+    if (!this._enabled || !state || this._syncing) {
+      this._lastSyncInfo = 'スキップ (enabled=' + this._enabled + ' state=' + !!state + ' syncing=' + this._syncing + ')';
+      return;
+    }
     this._syncing = true;
     try {
       const token = await this._getAccessToken(false);
-      if (!token) { this._syncing = false; return; }
+      if (!token) {
+        this._lastSyncInfo = 'トークン取得失敗';
+        this._syncing = false;
+        return;
+      }
 
       const desired = this._buildDesiredEvents(state);
 
@@ -141,7 +152,12 @@ const CalendarSync = {
       }
 
       const total = toCreate.length + toUpdate.length + toDelete.length;
-      if (total === 0) { this._syncing = false; return; }
+      if (total === 0) {
+        this._lastSyncInfo = '変更なし (イベント数: ' + Object.keys(desired).length + '件計算済み, 保存済み: ' + Object.keys(this._eventMap).length + '件)';
+        this._syncing = false;
+        return;
+      }
+      this._lastSyncInfo = '作成' + toCreate.length + ' 更新' + toUpdate.length + ' 削除' + toDelete.length;
       console.log('CalendarSync: ' + toCreate.length + ' create, ' + toUpdate.length + ' update, ' + toDelete.length + ' delete');
 
       // Execute with concurrency limit
@@ -159,8 +175,10 @@ const CalendarSync = {
       // Run up to 5 concurrently
       await this._runConcurrent(tasks, 5);
       this._saveEventMap();
+      this._lastSyncInfo += ' → 完了 (保存済み: ' + Object.keys(this._eventMap).length + '件)';
     } catch (e) {
       console.error('CalendarSync error:', e);
+      this._lastSyncInfo = 'エラー: ' + e.message;
     }
     this._syncing = false;
   },
