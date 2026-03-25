@@ -284,8 +284,9 @@ const Social = {
     if (!completed) return 0;
     // Build a set of rest dates from the plan
     const restDates = new Set();
-    if (plan) {
+    if (plan && Array.isArray(plan)) {
       for (const week of plan) {
+        if (!week || !week.days) continue;
         for (const day of week.days) {
           if (day.type === 'rest') restDates.add(day.date);
         }

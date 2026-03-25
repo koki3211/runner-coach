@@ -520,7 +520,12 @@ const App = {
 
     // Fetch short ID for popup
     if (user && typeof Social !== 'undefined' && Social.enabled) {
-      this._myShortId = await Social.getOrCreateUserId();
+      try {
+        this._myShortId = await Social.getOrCreateUserId();
+      } catch (e) {
+        console.error('Failed to get user ID:', e);
+        this._myShortId = null;
+      }
     } else {
       this._myShortId = null;
     }
@@ -2359,17 +2364,22 @@ const App = {
     }
 
     // Sort: active training first, then by streak (descending)
-    friends.sort((a, b) => {
-      const aActive = isActiveWorkout(a.activeWorkout);
-      const bActive = isActiveWorkout(b.activeWorkout);
-      if (aActive && !bActive) return -1;
-      if (!aActive && bActive) return 1;
-      return Social.calcStreak(b.completed, b.plan) - Social.calcStreak(a.completed, a.plan);
-    });
+    try {
+      friends.sort((a, b) => {
+        const aActive = isActiveWorkout(a.activeWorkout);
+        const bActive = isActiveWorkout(b.activeWorkout);
+        if (aActive && !bActive) return -1;
+        if (!aActive && bActive) return 1;
+        return Social.calcStreak(b.completed, b.plan) - Social.calcStreak(a.completed, a.plan);
+      });
+    } catch (e) {
+      console.error('Failed to sort friends:', e);
+    }
 
     const todayStr = toISO(today());
     listEl.innerHTML = '<div class="section"><div class="section-header">仲間 (' + friends.length + ')</div>' +
       friends.map(f => {
+        try {
         const streak = Social.calcStreak(f.completed, f.plan);
         const isDone = f.completed && f.completed[todayStr];
         const sett = f.settings || {};
@@ -2418,6 +2428,10 @@ const App = {
           '</div>' +
           '<div class="friend-streak"><div class="streak-num">' + streak + '</div><div class="streak-label">日連続</div></div>' +
         '</div>';
+        } catch (e) {
+          console.error('Failed to render friend:', f.uid, e);
+          return '';
+        }
       }).join('') + '</div>';
 
     // Re-render Today tab to show training friends
@@ -3203,8 +3217,9 @@ function calcStreak(completed, plan) {
   if (!completed) return 0;
   // Build a set of rest dates from the plan
   const restDates = new Set();
-  if (plan) {
+  if (plan && Array.isArray(plan)) {
     for (const week of plan) {
+      if (!week || !week.days) continue;
       for (const day of week.days) {
         if (day.type === 'rest') restDates.add(day.date);
       }
@@ -3230,8 +3245,9 @@ function isActiveWorkout(aw) {
 }
 
 function findTodayWorkout(plan, todayStr) {
-  if (!plan) return null;
+  if (!plan || !Array.isArray(plan)) return null;
   for (const week of plan) {
+    if (!week || !week.days) continue;
     for (const day of week.days) {
       if (day.date === todayStr) return day;
     }
