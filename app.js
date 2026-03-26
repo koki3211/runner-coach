@@ -653,25 +653,16 @@ const App = {
       btn.textContent = 'OFF';
     } else {
       btn.textContent = '...';
-      try {
-        const ok = await CalendarSync.enable();
-        if (ok) {
-          btn.classList.add('on');
-          btn.textContent = 'ON';
-          // Initial sync
-          if (this.state && this.state.plan) {
-            const result = await CalendarSync.syncPlan(this.state);
-            alert('カレンダー同期完了！\n' + CalendarSync.getLastSyncInfo());
-          } else {
-            alert('プランがありません。先にプランを作成してください。');
-          }
-        } else {
-          btn.textContent = 'OFF';
-          alert('カレンダー認証がキャンセルされました');
+      const ok = await CalendarSync.enable();
+      if (ok) {
+        btn.classList.add('on');
+        btn.textContent = 'ON';
+        // Initial sync
+        if (this.state && this.state.plan) {
+          CalendarSync.syncPlan(this.state);
         }
-      } catch (e) {
+      } else {
         btn.textContent = 'OFF';
-        alert('カレンダー連携エラー: ' + e.message);
       }
     }
   },
