@@ -150,6 +150,7 @@ const Social = {
           completed: state.completed || {},
           actualDist: state.actualDist || {},
           actualDuration: state.actualDuration || {},
+          strengthRecords: state.strengthRecords || {},
           plan: state.plan || [],
         });
         fallback.updatedAt = firebase.firestore.FieldValue.serverTimestamp();

@@ -1,4 +1,4 @@
-const CACHE = 'runner-coach-v59';
+const CACHE = 'runner-coach-v60';
 const ASSETS = [
   './', './index.html', './app.js', './firebase-config.js', './social.js', './calendar-sync.js',
   './design-tokens/variables.css', './design-tokens/font-family.css',
